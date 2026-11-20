@@ -115,11 +115,11 @@
     <div id="toast-container"></div>
     <!-- Header fijo premium -->
     <header class="bg-white shadow-md border-b border-gray-200 sticky top-0 z-50">
-        <div class="px-4 py-2">
+        <div class="px-4 py-1">
             <div class="flex justify-between items-center">
                 <!-- Logo y Empresa -->
-                <div class="flex items-center space-x-4">
-                    <img src="/assets/img/logo-simbolo.png?v=2" alt="FrioTeam" class="w-11 h-11 object-contain">
+                <div class="flex items-center space-x-3">
+                    <img src="/assets/img/logo-simbolo.png?v=2" alt="FrioTeam" class="w-8 h-8 object-contain">
                     <div>
                         <h1 class="text-sm font-black text-slate-800 uppercase tracking-tight leading-none"><?= esc($empresa_actual['nombre_comercial'] ?? $empresa_actual['razon_social'] ?? 'Mi Empresa') ?></h1>
                         <div class="flex items-center gap-2 mt-0.5">
@@ -140,7 +140,7 @@
                         <!-- Panel de cotizaciones activas -->
                         <div class="relative">
                             <button id="btn-cotizaciones"
-                                class="flex items-center px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all group">
+                                class="flex items-center px-2.5 py-1 text-xs font-bold text-slate-600 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all group">
                                 <i class="fas fa-file-invoice-dollar mr-2 text-slate-400 group-hover:text-amber-500"></i>
                                 Cotizaciones
                                 <span id="badge-cotizaciones"
@@ -183,25 +183,27 @@
                             </div>
                         </div>
 
-                        <a href="/configuracion" class="flex items-center px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all group" title="Configurar descuentos POS">
+                        <?php if (\App\Libraries\Auth::can('usuarios.gestionar')): ?>
+                        <a href="/configuracion" class="flex items-center px-2.5 py-1 text-xs font-bold text-slate-600 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all group" title="Configurar descuentos POS">
                             <i class="fas fa-cog mr-2 text-slate-400 group-hover:text-amber-500"></i>Configuración
                         </a>
+                        <?php endif; ?>
                     </nav>
                 </div>
 
                 <!-- Usuario y Salida -->
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-3">
                     <?php if (isset($exigir_caja)): ?>
-                    <a href="/caja" class="flex items-center px-3 py-2 text-xs font-bold rounded-lg border transition-all <?= !empty($caja_actual) ? 'text-emerald-700 bg-emerald-50 border-emerald-100 hover:bg-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100 hover:bg-amber-100' ?>"
+                    <a <?= \App\Libraries\Auth::can('caja.mi_caja') ? 'href="/caja"' : '' ?> class="flex items-center px-2.5 py-1 text-xs font-bold rounded-lg border transition-all <?= !empty($caja_actual) ? 'text-emerald-700 bg-emerald-50 border-emerald-100 hover:bg-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100 hover:bg-amber-100' ?>"
                        title="<?= !empty($caja_actual) ? 'Ver caja, entradas/salidas y cierre' : 'Abrir caja' ?>">
                         <i class="fas fa-cash-register mr-2"></i><?= !empty($caja_actual) ? 'Caja #' . (int) $caja_actual['caja_id'] . ' abierta' : 'Caja cerrada' ?>
                     </a>
                     <?php endif; ?>
-                    <a href="/dashboard" onclick="return salirDelPos();" class="flex items-center px-3 py-2 text-xs font-bold text-slate-600 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all border border-slate-100" title="Salir del POS y volver al panel">
+                    <a href="/dashboard" onclick="return salirDelPos();" class="flex items-center px-2.5 py-1 text-xs font-bold text-slate-600 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all border border-slate-100" title="Salir del POS y volver al panel">
                         <i class="fas fa-sign-out-alt mr-2"></i>Salir del POS
                     </a>
-                    <div class="flex items-center bg-slate-50 border border-slate-100 p-1 rounded-full pr-4 group hover:bg-white hover:shadow-sm transition-all cursor-pointer">
-                        <div class="w-8 h-8 rounded-full bg-pos flex items-center justify-center text-white font-black text-xs shadow-md shadow-pos/20 ring-2 ring-white">
+                    <div class="flex items-center bg-slate-50 border border-slate-100 p-0.5 rounded-full pr-3 group hover:bg-white hover:shadow-sm transition-all cursor-pointer">
+                        <div class="w-7 h-7 rounded-full bg-pos flex items-center justify-center text-white font-black text-xs shadow-md shadow-pos/20 ring-2 ring-white">
                             <?= strtoupper(substr($auth['name'] ?? 'U', 0, 1)) ?>
                         </div>
                         <div class="ml-2">
@@ -212,7 +214,7 @@
                     
                     <form method="POST" action="/logout" class="inline">
                         <?= csrf_field() ?>
-                        <button type="submit" class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all border border-transparent hover:border-red-100" title="Cerrar Sesión">
+                        <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all border border-transparent hover:border-red-100" title="Cerrar Sesión">
                             <i class="fas fa-power-off"></i>
                         </button>
                     </form>
@@ -222,9 +224,11 @@
     </header>
 
     <!-- Contenido principal - Ocupa todo el espacio disponible -->
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Columna izquierda: Código/Cliente arriba y el carrito debajo -->
+        <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
         <!-- Barra de búsqueda y controles -->
-        <div class="bg-white border-b border-gray-200 p-4">
+        <div class="bg-white border-b border-gray-200 px-4 py-2">
             <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
                 <!-- Campo Código/Nombre -->
                 <div class="md:col-span-5">
@@ -269,9 +273,7 @@
             </div>
         </div>
 
-        <!-- Área de contenido dividida -->
-        <div class="flex-1 flex overflow-hidden">
-            <!-- Lista de productos en carrito (2/3 del ancho) -->
+        <!-- Área del carrito -->
             <div class="flex-1 overflow-auto p-4 scroll-custom">
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full">
                     <div class="border-b border-gray-200 p-4 flex justify-between">
@@ -287,29 +289,22 @@
                     <div class="overflow-auto h-[calc(100%-60px)]">
                         <div id="contenedor-carrito">
                             <table class="min-w-full divide-y divide-gray-200" id="tabla-carrito">
-                                <thead class="bg-gray-50">
+                                <thead class="text-white" style="background:#3e86c8">
                                     <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">N°
-                                        </th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                            Código</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                            Descripción</th>
-                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                                            Cantidad</th>
-                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                                            Precio</th>
-                                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                                            Desc %</th>
-                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                                            Subtotal</th>
-                                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                                            Acción</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-white">N°</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-white">Lugar</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-white">Lugar(2)</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-white">Código</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-white">Descripción</th>
+                                        <th class="px-3 py-3 text-center text-xs font-bold text-white">Cantidad</th>
+                                        <th class="px-3 py-3 text-center text-xs font-bold text-white">Precio</th>
+                                        <th class="px-3 py-3 text-right text-xs font-bold text-white">Subtotal</th>
+                                        <th class="px-3 py-3 text-center text-xs font-bold text-white"><i class="fas fa-trash"></i></th>
                                     </tr>
                                 </thead>
                                 <tbody id="posTable" class="bg-white divide-y divide-gray-200 receipt-font">
                                     <tr id="sin-productos">
-                                        <td colspan="6" class="px-4 py-8 text-center text-sm text-gray-500">
+                                        <td colspan="9" class="px-4 py-8 text-center text-sm text-gray-500">
                                             <i class="fas fa-shopping-cart text-3xl text-gray-300 mb-2"></i>
                                             <p>No hay productos en el carrito</p>
                                             <p class="text-xs mt-2">Busque productos usando el campo de búsqueda
@@ -351,9 +346,13 @@
                 </div>
             </div>
 
-            <!-- Panel lateral derecho (1/3 del ancho) -->
-            <div class="w-96 border-l border-gray-200 flex flex-col">
-                <!-- Totales -->
+        </div><!-- /columna izquierda -->
+
+            <!-- Columna derecha: totales, pagos y botones, desde arriba -->
+            <div class="w-96 shrink-0 border-l border-gray-200 bg-white flex flex-col min-h-0">
+
+                <!-- Lo de en medio (totales, pagos, referencia) se desplaza si la pantalla es baja; los botones quedan fijos abajo -->
+                <div class="flex-1 min-h-0 overflow-y-auto">
                 <div class="p-4 border-b border-gray-200">
                     <h3 class="text-lg font-semibold text-gray-900 mb-3">
                         Totales
@@ -413,15 +412,16 @@
                 </div>
 
                 <!-- Comentarios -->
-                <div class="p-4 border-b border-gray-200 flex-1">
+                <div class="p-4 border-b border-gray-200">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Referencia FISCAL</label>
                     <textarea id="txreferencia"
                         class="w-full h-16 p-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pos focus:border-transparent"
                         placeholder="Notas o referencia para la factura..."></textarea>
                 </div>
+                </div>
 
                 <!-- Botones de acción -->
-                <div class="p-4">
+                <div class="p-4 shrink-0 border-t border-gray-200">
                     <div class="grid grid-cols-2 gap-3">
                         <button id="btncotizar"
                             class="btn-cotizar w-full text-white text-sm py-3 rounded-lg font-bold hover:opacity-90 action-btn">
@@ -435,14 +435,14 @@
                             class="btn-cancelar w-full text-white text-sm py-3 rounded-lg font-bold hover:opacity-90 action-btn">
                             <i class="fas fa-times mr-2"></i>CANCELAR
                         </button>
-                        <button id="btnimprimir"
+                        <button id="btnimprimir" title="Cobra la venta pero no imprime la factura"
                             class="btn-imprimir w-full text-white text-sm py-3 rounded-lg font-bold hover:opacity-90 action-btn">
-                            <i class="fas fa-print mr-2"></i>IMPRIMIR
+                            <i class="fas fa-ban mr-2"></i>NO IMPRIMIR
                         </button>
                     </div>
                 </div>
+
             </div>
-        </div>
     </div>
 
     <!-- Modal: Nuevo Cliente -->
@@ -548,6 +548,22 @@
     </div>
 
     <!-- Scripts -->
+    <!-- Foto del producto ampliada -->
+    <div id="modal-foto" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onclick="cerrarFoto()">
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between gap-3 px-5 py-3 border-b border-gray-100">
+                <div class="min-w-0">
+                    <div id="foto-nombre" class="text-sm font-bold text-gray-900 truncate"></div>
+                    <div id="foto-codigo" class="text-xs font-mono text-gray-400"></div>
+                </div>
+                <button type="button" onclick="cerrarFoto()" class="w-9 h-9 shrink-0 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition" title="Cerrar (Esc)"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex-1 min-h-0 bg-gray-50 flex items-center justify-center p-4">
+                <img id="foto-img" src="" alt="" class="max-w-full max-h-[75vh] object-contain rounded-lg">
+            </div>
+        </div>
+    </div>
+
     <script src="/assets/js/lector-teclado.js?v=2"></script>
     <script>
         // Escapa texto para insertarlo en HTML (nombres de productos/clientes vienen de la BD)
@@ -617,19 +633,11 @@
                 }
             });
             
-            document.getElementById('btnpagar').onclick = () => procesarDocumento('venta');
+            // PAGAR: cobra e imprime la factura. NO IMPRIMIR: cobra y no imprime.
+            document.getElementById('btnpagar').onclick = () => procesarDocumento('venta', true);
+            document.getElementById('btnimprimir').onclick = () => procesarDocumento('venta', false);
             document.getElementById('btncotizar').onclick = () => procesarDocumento('cotizacion');
             document.getElementById('btncancelar').onclick = limpiarCarrito;
-            // IMPRIMIR: ticket de 58 mm de la última venta cobrada en esta computadora
-            document.getElementById('btnimprimir').onclick = function () {
-                if (IMPRESION_POS === 'cups') { imprimirFacturaCups(null); return; }   // última factura de este usuario, por CUPS
-                let id = null;
-                try { id = localStorage.getItem('pos_ultima_venta'); } catch (e) {}
-                if (!id) { toast('Todavía no hay una venta para imprimir', 'error'); return; }
-                if (IMPRESION_POS === 'factura') { window.open('/ventas/venta/' + encodeURIComponent(id) + '/factura?auto=1', '_blank'); return; }
-                if (IMPRESORA_RED) { imprimirEnRed(id); return; }   // BIXOLON por red
-                window.open('/m/venta/' + encodeURIComponent(id) + '/ticket', '_blank');
-            };
 
             // Initialize Select2
             $(document).ready(function() {
@@ -787,14 +795,16 @@
             }
 
             // Habilitar/deshabilitar botón PAGAR
-            const btn = document.getElementById('btnpagar');
-            if (pagado >= total - 0.005 || total === 0) {
-                btn.disabled = false;
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            } else {
-                btn.disabled = true;
-                btn.classList.add('opacity-50', 'cursor-not-allowed');
-            }
+            ['btnpagar', 'btnimprimir'].forEach(function (idBtn) {
+                const btn = document.getElementById(idBtn);
+                if (pagado >= total - 0.005 || total === 0) {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                } else {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            });
         }
 
         function calcularTotal() {
@@ -889,7 +899,7 @@
                         <td class="px-1 py-0.5 text-center">${btnPrecio(parseInt(p.producto_id, 10), 'a', prA, 'bg-blue-600 hover:bg-blue-700')}</td>
                         <td class="px-1 py-0.5 text-center">${prB > 0 ? btnPrecio(parseInt(p.producto_id, 10), 'b', prB, 'bg-green-600 hover:bg-green-700') : sinPrecio}</td>
                         <td class="px-1 py-0.5 text-center">${prC > 0 ? btnPrecio(parseInt(p.producto_id, 10), 'c', prC, 'bg-amber-500 hover:bg-amber-600') : sinPrecio}</td>
-                        <td class="px-3 py-0.5 text-center"><img src="${escHtml(imgUrl)}" onerror="this.onerror=null;this.src='/assets/img/no-image.svg'" class="w-12 h-12 object-cover rounded shadow-sm border border-gray-200 mx-auto"></td>
+                        <td class="px-3 py-0.5 text-center"><img src="${escHtml(imgUrl)}" data-nombre="${escHtml(p.nombre)}" data-codigo="${escHtml(p.codigo)}" onclick="abrirFoto(this)" title="Clic para ampliar la foto" onerror="this.onerror=null;this.src='/assets/img/no-image.svg'" class="w-12 h-12 object-cover rounded shadow-sm border border-gray-200 mx-auto cursor-zoom-in hover:ring-2 hover:ring-sky-400 transition"></td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -936,6 +946,23 @@
             setTimeout(() => elementosDOM.txcodigo.focus(), 50);
         }
 
+        // Foto del producto en grande (modal). Esc o clic fuera la cierra.
+        function abrirFoto(img) {
+            if (!img || /no-image\.svg/.test(img.getAttribute('src') || '')) return; // sin foto: nada que ampliar
+            document.getElementById('foto-img').src = img.src;
+            document.getElementById('foto-nombre').textContent = img.dataset.nombre || '';
+            document.getElementById('foto-codigo').textContent = img.dataset.codigo || '';
+            document.getElementById('modal-foto').classList.remove('hidden');
+        }
+        function cerrarFoto() {
+            document.getElementById('modal-foto').classList.add('hidden');
+            document.getElementById('foto-img').src = '';
+        }
+        document.addEventListener('keydown', function (e) {
+            const m = document.getElementById('modal-foto');
+            if (e.key === 'Escape' && m && !m.classList.contains('hidden')) { e.stopImmediatePropagation(); cerrarFoto(); }
+        }, true);
+
         function agregarAlCarrito(p, tipo, precio, unidadId = null, presentacion = 'Unid.') {
             const index = carrito.findIndex(item => item.id == p.producto_id && item.tipo == tipo && item.unidad_id == unidadId);
             if (index !== -1) {
@@ -945,6 +972,8 @@
                     id: p.producto_id,
                     codigo: p.codigo,
                     nombre: p.nombre,
+                    ubic1: p.ubic1 || '',
+                    ubic2: p.ubic2 || '',
                     precio: parseFloat(precio),
                     tipo: tipo,
                     cantidad: 1,
@@ -993,6 +1022,8 @@
                 id: p.producto_id,
                 codigo: p.codigo,
                 nombre: p.nombre,
+                ubic1: p.ubic1 || '',
+                ubic2: p.ubic2 || '',
                 precio: parseFloat(precio),
                 tipo: tipo,
                 unidad_id: unidadId,
@@ -1016,27 +1047,22 @@
                 const descMonto = item.cantidad * item.precio * (descPct / 100);
                 const linea = (item.cantidad * item.precio) - descMonto;
                 tr.innerHTML = `
-                    <td class="px-4 py-3 text-sm text-gray-400">${i + 1}</td>
-                    <td class="px-4 py-3 text-sm font-mono text-gray-600 cursor-pointer" ondblclick="editarProductoFila(${i})" title="Doble clic para cambiar el producto">${escHtml(item.codigo)}</td>
-                    <td class="px-4 py-3 cursor-pointer" ondblclick="editarProductoFila(${i})" title="Doble clic para cambiar el producto">
-                        <div class="text-sm font-medium text-gray-900 line-clamp-1">${escHtml(item.nombre)}</div>
-                        <div class="text-xs text-gray-400 mt-0.5">${escHtml(item.presentacion && item.presentacion !== 'Unid.' ? item.presentacion : (item.um && item.um !== 'und' ? 'Por ' + item.um : 'Unid.'))}</div>
+                    <td class="px-3 py-0.5 text-xs text-gray-400">${i + 1}</td>
+                    <td class="px-3 py-0.5 text-xs font-semibold text-gray-700 whitespace-nowrap">${escHtml(item.ubic1 || '')}</td>
+                    <td class="px-3 py-0.5 text-xs font-semibold text-gray-700 whitespace-nowrap">${escHtml(item.ubic2 || '')}</td>
+                    <td class="px-3 py-0.5 text-xs font-mono text-gray-600 cursor-pointer" ondblclick="editarProductoFila(${i})" title="Doble clic para cambiar el producto">${escHtml(item.codigo)}</td>
+                    <td class="px-3 py-0.5 cursor-pointer" ondblclick="editarProductoFila(${i})" title="Doble clic para cambiar el producto">
+                        <span class="text-sm font-medium text-gray-900 line-clamp-1">${escHtml(item.nombre)}${item.presentacion && item.presentacion !== 'Unid.' ? ' <span class="text-[11px] text-sky-600 font-semibold">(' + escHtml(item.presentacion) + ')</span>' : ''}</span>
                     </td>
-                    <td class="px-4 py-3 text-center">
-                        <input type="number" min="0.01" step="any" value="${item.cantidad}" class="w-16 text-center border border-gray-300 rounded text-sm py-1 focus:outline-none focus:border-pos" onchange="cambiarCantidad(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
+                    <td class="px-3 py-0.5 text-center">
+                        <input type="number" min="0.01" step="any" value="${item.cantidad}" class="w-14 h-6 text-center border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos" onchange="cambiarCantidad(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
                     </td>
-                    <td class="px-4 py-3 text-right text-sm">
-                        <input type="number" step="0.01" min="0" value="${item.precio.toFixed(2)}" class="w-20 text-right border border-gray-300 rounded text-sm py-1 focus:outline-none focus:border-pos bg-gray-50" onchange="cambiarPrecio(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
+                    <td class="px-3 py-0.5 text-center">
+                        <input type="number" step="0.01" min="0" value="${item.precio.toFixed(2)}" class="w-20 h-6 text-right border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos bg-gray-50" onchange="cambiarPrecio(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
                     </td>
-                    <td class="px-4 py-3 text-center">
-                        <div class="relative inline-flex items-center">
-                            <input type="number" step="1" min="0" max="${MAX_DESCUENTO_PCT}" value="${Math.round(descPct)}" title="Descuento en % — 10 = 10% de descuento" class="w-16 text-center border border-amber-200 rounded text-sm py-1 focus:outline-none focus:border-amber-400 bg-amber-50 text-amber-700 font-semibold pr-4" onchange="cambiarDescuento(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
-                            <span class="absolute right-1.5 text-xs text-amber-500 pointer-events-none font-bold">%</span>
-                        </div>
-                    </td>
-                    <td class="px-4 py-3 text-right text-sm font-bold text-gray-800">$${linea.toFixed(2)}</td>
-                    <td class="px-4 py-3 text-center">
-                        <button onclick="eliminar(${i})" class="w-8 h-8 rounded text-gray-300 hover:text-red-500 transition-colors bg-white hover:bg-red-50"><i class="fas fa-trash"></i></button>
+                    <td class="px-3 py-0.5 text-right text-sm font-bold text-gray-800">$${linea.toFixed(2)}</td>
+                    <td class="px-3 py-0.5 text-center">
+                        <button onclick="eliminar(${i})" class="w-6 h-6 rounded text-gray-400 hover:text-red-500 transition-colors bg-white hover:bg-red-50" title="Eliminar"><i class="fas fa-trash text-xs"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1047,14 +1073,14 @@
             trNueva.id = 'fila-nueva-linea';
             trNueva.className = 'bg-white';
             trNueva.innerHTML = `
-                <td class="px-4 py-2 text-xs text-gray-300">${carrito.length + 1}</td>
-                <td colspan="2" class="px-4 py-2">
+                <td class="px-3 py-1 text-xs text-gray-300">${carrito.length + 1}</td>
+                <td colspan="4" class="px-3 py-1">
                     <input type="text" id="input-nueva-linea"
                         placeholder="Código o descripción..."
                         autocomplete="off"
                         class="w-full max-w-md border-b border-dashed border-gray-300 text-sm text-gray-700 focus:outline-none focus:border-pos py-1 bg-transparent placeholder-gray-300">
                 </td>
-                <td colspan="5" class="px-4 py-2 text-xs text-gray-300 italic">Escriba código o descripción: los resultados aparecen al escribir</td>
+                <td colspan="4" class="px-3 py-1 text-xs text-gray-300 italic">Escriba código o descripción: los resultados aparecen al escribir</td>
             `;
             tbody.appendChild(trNueva);
 
@@ -1272,7 +1298,7 @@
             } catch (e) { alert('No se pudo imprimir la factura: ' + e.message); return false; }
         }
 
-        async function procesarDocumento(tipoDoc = 'venta') {
+        async function procesarDocumento(tipoDoc = 'venta', imprimir = true) {
             if (carrito.length === 0) return toast('No hay productos para procesar', 'info');
 
             if (tipoDoc === 'venta') {
@@ -1319,14 +1345,32 @@
                 carrito = [];
                 pagos = [{ forma_pago: 'EFECTIVO', monto: 0 }];
                 guardarCarritoLocal();
+                // COTIZAR: además de guardar la cotización, la imprime (CUPS directo, o la hoja con el diálogo de impresión)
+                if (tipoDoc === 'cotizacion' && res.cotizacion_id) {
+                    if (IMPRESION_POS === 'cups') {
+                        try {
+                            const rc = await fetch('/ventas/cotizaciones/' + encodeURIComponent(res.cotizacion_id) + '/imprimir-cups', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '<?= csrf_hash() ?>', 'X-Requested-With': 'XMLHttpRequest' },
+                                body: '{}'
+                            });
+                            const jc = await rc.json().catch(() => ({}));
+                            if (!rc.ok || jc.ok !== true) throw new Error(jc.error || 'La impresora no confirmó la cotización');
+                            toast('Cotización ' + (res.numero || '') + ' enviada a la impresora', 'success');
+                        } catch (e) { toast(e.message, 'error', 7000); }
+                    } else {
+                        location.href = '/ventas/cotizaciones/' + res.cotizacion_id + '/imprimir?auto=1&volver=pos';
+                        return;
+                    }
+                }
                 // El botón IMPRIMIR saca el ticket de esta venta después de recargar
                 if (tipoDoc === 'venta' && res.venta_id) { try { localStorage.setItem('pos_ultima_venta', String(res.venta_id)); } catch (e) {} }
                 // Con impresora de red en modo automático, el ticket sale solo al cobrar
                 // Impresión automática por CUPS al cobrar: el servidor manda la factura a la Ricoh
-                if (tipoDoc === 'venta' && IMPRESION_POS === 'cups' && IMPRESORA_AUTO) { await imprimirFacturaCups(res.venta_id || null); }
+                if (tipoDoc === 'venta' && imprimir && IMPRESION_POS === 'cups') { await imprimirFacturaCups(res.venta_id || null); }
                 // Impresión automática de la factura al cobrar (si está activada): abre el diálogo y vuelve al POS al terminar
-                if (tipoDoc === 'venta' && res.venta_id && IMPRESION_POS === 'factura' && IMPRESORA_AUTO) { location.href = '/ventas/venta/' + res.venta_id + '/factura?auto=1&volver=pos'; return; }
-                if (tipoDoc === 'venta' && res.venta_id && IMPRESORA_RED && IMPRESORA_AUTO) { await imprimirEnRed(res.venta_id); }
+                if (tipoDoc === 'venta' && imprimir && res.venta_id && IMPRESION_POS === 'factura') { location.href = '/ventas/venta/' + res.venta_id + '/factura?auto=1&volver=pos'; return; }
+                if (tipoDoc === 'venta' && imprimir && res.venta_id && IMPRESORA_RED) { await imprimirEnRed(res.venta_id); }
                 location.reload();
             } catch (e) { toast(e.message, 'error'); }
         }
@@ -1561,6 +1605,8 @@
                         id:           item.producto_id,
                         codigo:       item.codigo,
                         nombre:       item.nombre,
+                        ubic1:        item.ubic1 || '',
+                        ubic2:        item.ubic2 || '',
                         precio:       parseFloat(item.precio),
                         tipo:         'a',
                         cantidad:     parseFloat(item.cantidad),

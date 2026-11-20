@@ -213,7 +213,7 @@ final class Auth
         $rol = self::rol();
         if ($rol === 'superadmin') return true;
 
-        self::$permisos ??= config('Permisos')->roles;
+        self::$permisos ??= RolesService::matriz();
         return in_array($permiso, self::$permisos[$rol] ?? [], true);
     }
 

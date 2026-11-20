@@ -14,7 +14,7 @@ return [
     // Items superiores (siempre primero en el sidebar)
     'menu_top' => [
         ['type' => 'section', 'label' => 'Principal'],
-        ['type' => 'link', 'label' => 'Dashboard', 'icon' => 'fas fa-home', 'href' => '/'],
+        ['type' => 'link', 'label' => 'Dashboard', 'icon' => 'fas fa-home', 'href' => '/', 'permission' => 'dashboard.ver'],
     ],
 
     // Items de módulo propios (vacío — core no ocupa sección media)

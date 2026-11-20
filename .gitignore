@@ -130,3 +130,6 @@ _modules/*
 
 # Generador de datos ficticios: solo para pruebas locales, nunca al servidor
 /app/Commands/DatosPrueba.php
+
+# Clave temporal local
+/writable/clave_local.txt

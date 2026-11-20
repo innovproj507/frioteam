@@ -166,6 +166,31 @@ class CotizacionController extends BaseController
         return $this->proforma($cotizacion, true);
     }
 
+    /** POST ventas/cotizaciones/{id}/imprimir-cups — manda la cotización en PDF a la impresora CUPS, sin diálogo del navegador. */
+    public function imprimirCups(int $cotizacionId)
+    {
+        if (!\App\Libraries\ImpresionCups::configurada()) {
+            return $this->json(['error' => 'No hay impresora CUPS configurada.'], 422);
+        }
+        $cotizacion = $this->buscar($cotizacionId);
+        if (!$cotizacion) {
+            return $this->json(['error' => 'Cotización no encontrada o no autorizada.'], 404);
+        }
+        ob_start();
+        try {
+            [$empresa, $sucursal] = $this->empresaYSucursal($cotizacion);
+            $pdf = CotizacionPdf::generar($cotizacion, $this->detalles((int) $cotizacion['cotizacion_id']), $empresa, $sucursal);
+            $trabajo = \App\Libraries\ImpresionCups::imprimirPdf($pdf, 'Cotizacion ' . ($cotizacion['numero'] ?? $cotizacionId), \App\Libraries\ImpresionCups::cola(), 'Letter');
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            log_message('error', 'Impresión CUPS de la cotización {id}: {m}', ['id' => $cotizacionId, 'm' => $e->getMessage()]);
+            return $this->json(['error' => $e->getMessage()], 422);
+        }
+        ob_end_clean();
+        log_message('info', 'Cotización {id} enviada a CUPS: trabajo {t}.', ['id' => $cotizacionId, 't' => $trabajo]);
+        return $this->json(['ok' => true, 'mensaje' => 'Cotización enviada a la impresora.', 'trabajo' => $trabajo]);
+    }
+
     public function descargarPdf(int $cotizacionId)
     {
         $cotizacion = $this->buscar($cotizacionId);
@@ -246,10 +271,16 @@ class CotizacionController extends BaseController
             return $this->json(['error' => 'No encontrada'], 404);
         }
 
+        $deps = array_values(\App\Libraries\SucursalService::depositosDe((int) $this->sucursalId()));
+        $dep1 = (int) ($deps[0]['deposito_id'] ?? 0);
+        $dep2 = (int) ($deps[1]['deposito_id'] ?? 0);
+
         return $this->json([
             'cotizacion' => $cotizacion,
             'items'      => Db::all(
-                "SELECT d.producto_id, d.cantidad, d.precio, d.descuento, p.codigo, p.nombre, p.itbms AS aplica_itbms
+                "SELECT d.producto_id, d.cantidad, d.precio, d.descuento, p.codigo, p.nombre, p.itbms AS aplica_itbms,
+                        (SELECT i.ubicacion FROM inventario i WHERE i.producto_id = d.producto_id AND i.deposito_id = {$dep1} LIMIT 1) AS ubic1,
+                        (SELECT i.ubicacion FROM inventario i WHERE i.producto_id = d.producto_id AND i.deposito_id = {$dep2} LIMIT 1) AS ubic2
                  FROM cotizaciones_detalle d
                  JOIN productos p ON p.producto_id = d.producto_id
                  WHERE d.cotizacion_id = ?",

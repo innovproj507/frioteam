@@ -12,7 +12,7 @@ return [
     'menu_order'   => 30,
     'menu' => [
         ['type' => 'section', 'label' => 'Clientes'],
-        ['type' => 'link', 'label' => 'Clientes',            'icon' => 'fas fa-users',             'href' => '/clientes'],
-        ['type' => 'link', 'label' => 'Cuentas por Cobrar',  'icon' => 'fas fa-hand-holding-usd',  'href' => '/clientes/cuentas-por-cobrar'],
+        ['type' => 'link', 'label' => 'Clientes',            'icon' => 'fas fa-users',             'href' => '/clientes', 'permission' => 'clientes.ver'],
+        ['type' => 'link', 'label' => 'Cuentas por Cobrar',  'icon' => 'fas fa-hand-holding-usd',  'href' => '/clientes/cuentas-por-cobrar', 'permission' => 'clientes.ver'],
     ],
 ];

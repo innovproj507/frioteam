@@ -110,6 +110,8 @@ $clientes_json = json_encode(array_map(function($c) use ($cliente_actual, &$clie
                     <div class="flex justify-end gap-1.5">
                         <a href="/ventas/cotizaciones/<?= $cotizacion['cotizacion_id'] ?>" title="Ver"
                            class="w-8 h-8 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center justify-center shadow-sm shadow-blue-500/30"><i class="fas fa-eye text-xs"></i></a>
+                        <a href="/ventas/cotizaciones/<?= $cotizacion['cotizacion_id'] ?>/pdf" title="Descargar PDF"
+                           class="w-8 h-8 rounded-lg bg-rose-500 text-white hover:bg-rose-600 transition-colors flex items-center justify-center shadow-sm shadow-rose-500/30"><i class="fas fa-file-pdf text-xs"></i></a>
                         <button onclick="imprimirCotizacion(<?= $cotizacion['cotizacion_id'] ?>)" title="Imprimir"
                            class="w-8 h-8 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors flex items-center justify-center shadow-sm shadow-emerald-500/30"><i class="fas fa-print text-xs"></i></button>
                     </div>

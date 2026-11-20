@@ -39,6 +39,10 @@ $linkPublico = base_url('c?t=' . urlencode($cotizacion['token'] ?? ''));
            class="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600 transition shadow-sm">
             <i class="fas fa-print"></i> Imprimir
         </a>
+        <a href="/ventas/cotizaciones/<?= $cotizacion['cotizacion_id'] ?>/pdf"
+           class="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-500 text-white rounded-lg text-sm font-semibold hover:bg-rose-600 transition shadow-sm">
+            <i class="fas fa-file-pdf"></i> Descargar PDF
+        </a>
         <button type="button" onclick="enviarPorWhatsApp()"
                 class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-semibold hover:bg-emerald-600 transition shadow-sm">
             <i class="fab fa-whatsapp"></i> Enviar por WhatsApp

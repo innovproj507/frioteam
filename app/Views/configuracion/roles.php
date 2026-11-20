@@ -1,107 +1,87 @@
 <?php $this->extend('layouts/app'); ?>
 <?php $this->section('content'); ?>
+<?php
+$puedeGuardar = \App\Libraries\Auth::can('usuarios.gestionar');
+$activosSet   = array_flip($activos ?? []);
+?>
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <!-- Lista de Roles -->
-    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Roles del Sistema</h3>
-            <form method="post" action="/configuracion/roles/crear" class="flex">
-                <?= csrf_field() ?>
-                <input type="text" name="nombre_rol" placeholder="Nuevo rol" class="w-full px-3 py-2 border rounded-lg text-sm mr-2" required>
-                <button type="submit" class="bg-sky-500 hover:bg-sky-600 text-white font-medium py-2 px-4 rounded-lg flex items-center whitespace-nowrap shadow-sm shadow-sky-500/30">
-                    <i class="fas fa-plus mr-1"></i> Crear
-                </button>
-            </form>
-        </div>
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-6" x-data="rolesForm()">
 
-        <div class="space-y-3">
-            <!-- Mock roles for design parity -->
-            <div class="border border-gray-100 rounded-xl p-4 bg-blue-50/30">
-                <div class="flex justify-between items-center">
-                    <h4 class="font-bold text-gray-900">Administrador</h4>
-                    <span class="text-xs bg-blue-500 text-white px-2.5 py-1 rounded-full font-bold">
-                        Pleno Acceso
-                    </span>
-                </div>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                    <span class="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-md">Gestión Ventas</span>
-                    <span class="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-md">Configuración</span>
-                    <span class="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-md">Inventario</span>
-                    <span class="text-xs text-gray-400">+all</span>
-                </div>
+    <!-- Roles -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 h-fit">
+        <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 px-1">Roles</h3>
+        <div class="space-y-1">
+            <?php foreach ($roles as $clave => $nombre): ?>
+            <a href="/configuracion/roles?rol=<?= esc($clave) ?>"
+               class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition <?= $clave === $rol ? 'bg-sky-500 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100' ?>">
+                <span><?= esc($nombre) ?></span>
+                <?php if (\App\Libraries\RolesService::personalizado($clave)): ?>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full <?= $clave === $rol ? 'bg-white/25' : 'bg-amber-100 text-amber-700' ?>" title="Tiene permisos cambiados">editado</span>
+                <?php endif; ?>
+            </a>
+            <?php endforeach; ?>
+            <div class="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-400" title="El administrador siempre tiene todos los permisos">
+                <span>Administrador</span><i class="fas fa-lock text-xs"></i>
             </div>
-
-            <div class="border border-gray-100 rounded-xl p-4">
-                <div class="flex justify-between items-center">
-                    <h4 class="font-bold text-gray-900">Vendedor</h4>
-                    <span class="text-xs bg-gray-400 text-white px-2.5 py-1 rounded-full font-bold">
-                        Acceso Limitado
-                    </span>
-                </div>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                    <span class="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-md">Crear Ventas</span>
-                    <span class="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-md">Ver Productos</span>
-                </div>
-            </div>
-
-            <p class="text-gray-400 text-center py-4 text-sm">Use el formulario para crear nuevos roles personalizados</p>
         </div>
     </div>
 
-    <!-- Gestión de Permisos -->
-    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Asignar Permisos</h3>
-
-        <form method="post" action="/configuracion/roles/permisos">
+    <!-- Permisos del rol -->
+    <div class="lg:col-span-3">
+        <form method="post" action="/configuracion/roles/guardar" id="form-permisos">
             <?= csrf_field() ?>
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Seleccionar Rol</label>
-                <select name="rol_id" class="w-full px-3 py-2 border rounded-lg text-sm" required>
-                    <option value="">Selecciona un rol</option>
-                    <option value="1">Administrador</option>
-                    <option value="2">Vendedor</option>
-                </select>
+            <input type="hidden" name="rol" value="<?= esc($rol) ?>">
+
+            <div class="flex flex-wrap items-center justify-between gap-3 bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-3 mb-4">
+                <div>
+                    <div class="text-lg font-bold text-gray-900">Permisos del rol <?= esc($roles[$rol]) ?></div>
+                    <div class="text-xs text-gray-500"><?= $usuarios_rol ?> usuario(s) activo(s) con este rol
+                        · <?= $personalizado ? 'permisos cambiados por ti' : 'permisos originales del sistema' ?></div>
+                </div>
+                <?php if ($puedeGuardar): ?>
+                <div class="flex items-center gap-2">
+                    <button type="button" @click="todos(true)" class="px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Marcar todo</button>
+                    <button type="button" @click="todos(false)" class="px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Quitar todo</button>
+                    <?php if ($personalizado): ?>
+                    <button type="submit" formaction="/configuracion/roles/restaurar" onclick="return confirm('¿Volver a los permisos originales de este rol?')"
+                            class="px-3 py-1.5 text-xs font-semibold text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-50">Restaurar originales</button>
+                    <?php endif; ?>
+                    <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-semibold hover:bg-sky-600 transition shadow-sm">
+                        <i class="fas fa-save"></i> Guardar
+                    </button>
+                </div>
+                <?php endif; ?>
             </div>
 
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Permisos Disponibles</label>
-                <div class="border border-gray-100 rounded-xl p-4 max-h-64 overflow-y-auto space-y-4">
-                    <div>
-                        <h5 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Ventas</h5>
-                        <div class="grid grid-cols-1 gap-2">
-                            <label class="flex items-center text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
-                                <input type="checkbox" name="permisos[]" class="w-4 h-4 text-blue-600 border-gray-300 rounded">
-                                <span class="ml-2 text-gray-700">Crear Venta</span>
-                            </label>
-                            <label class="flex items-center text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
-                                <input type="checkbox" name="permisos[]" class="w-4 h-4 text-blue-600 border-gray-300 rounded">
-                                <span class="ml-2 text-gray-700">Anular Venta</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h5 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Inventario</h5>
-                        <div class="grid grid-cols-1 gap-2">
-                            <label class="flex items-center text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
-                                <input type="checkbox" name="permisos[]" class="w-4 h-4 text-blue-600 border-gray-300 rounded">
-                                <span class="ml-2 text-gray-700">Gestión de Stock</span>
-                            </label>
-                            <label class="flex items-center text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
-                                <input type="checkbox" name="permisos[]" class="w-4 h-4 text-blue-600 border-gray-300 rounded">
-                                <span class="ml-2 text-gray-700">Editar Productos</span>
-                            </label>
-                        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <?php foreach ($catalogo as $grupo => $permisos): ?>
+                <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                    <h4 class="text-sm font-bold text-gray-800 mb-2"><?= esc($grupo) ?></h4>
+                    <div class="space-y-1.5">
+                        <?php foreach ($permisos as $codigo => $etiqueta): ?>
+                        <label class="flex items-start gap-2.5 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 rounded-md px-1.5 py-1">
+                            <input type="checkbox" name="permisos[]" value="<?= esc($codigo) ?>"
+                                   <?= isset($activosSet[$codigo]) ? 'checked' : '' ?> <?= $puedeGuardar ? '' : 'disabled' ?>
+                                   class="mt-0.5 rounded border-gray-300 text-sky-500 focus:ring-sky-400">
+                            <span><?= esc($etiqueta) ?></span>
+                        </label>
+                        <?php endforeach; ?>
                     </div>
                 </div>
+                <?php endforeach; ?>
             </div>
 
-            <button type="submit" class="bg-sky-500 hover:bg-sky-600 text-white font-medium py-2 px-6 rounded-lg w-full transition shadow-sm shadow-sky-500/30">
-                <i class="fas fa-save mr-2"></i> Actualizar Permisos
-            </button>
+            <p class="text-xs text-gray-400 mt-4">Los cambios aplican la próxima vez que cada usuario abra una página. Cada usuario sigue limitado a los depósitos que tenga asignados.</p>
         </form>
     </div>
 </div>
+
+<script>
+    function rolesForm() {
+        return {
+            todos(v) { document.querySelectorAll('#form-permisos input[type=checkbox]').forEach(c => { c.checked = v; }); }
+        };
+    }
+</script>
 
 <?php $this->endSection(); ?>

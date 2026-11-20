@@ -102,7 +102,9 @@ $campo  = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white f
                 <?php if (ver_costos()): ?>
                 <?= $fila('Costo', $costo > 0 ? $dinero($costo) : '<span class="text-amber-600">Falta</span>') ?>
                 <?php endif; ?>
+                <?php if (\App\Libraries\Auth::can('productos.ver_precio_a')): ?>
                 <?= $fila('Precio', $precio > 0 ? '<b class="text-sky-700">' . $dinero($precio) . '</b>' : '<span class="text-amber-600">Sin precio</span>') ?>
+                <?php endif; ?>
                 <?= $fila('Precio B', (float) ($precios_map['b'] ?? 0) > 0 ? '<b class="text-emerald-700">' . $dinero((float) $precios_map['b']) . '</b>' : '<span class="text-gray-400">—</span>') ?>
                 <?= $fila('Precio C', (float) ($precios_map['c'] ?? 0) > 0 ? '<b class="text-pink-700">' . $dinero((float) $precios_map['c']) . '</b>' : '<span class="text-gray-400">—</span>') ?>
                 <?php if (ver_costos()): ?>

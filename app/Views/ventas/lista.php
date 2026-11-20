@@ -28,6 +28,7 @@ $tabs = [
     'normal' => ['Ventas normales',  'fa-file-invoice',  (int) $conteo_origen['normal']],
 ];
 ?>
+<?php if (empty($solo_pos)): ?>
 <div class="flex flex-wrap gap-2 mb-4">
     <?php foreach ($tabs as $clave => [$etiqueta, $icono, $n]): $activa = ($origen_actual === $clave); ?>
         <a href="<?= esc($urlTab($clave)) ?>"
@@ -37,6 +38,7 @@ $tabs = [
         </a>
     <?php endforeach; ?>
 </div>
+<?php endif; ?>
 
 <!-- Filtros + acciones -->
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">

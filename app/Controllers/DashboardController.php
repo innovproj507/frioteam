@@ -9,8 +9,11 @@ use App\Libraries\SmartInsightService;
 
 class DashboardController extends BaseController
 {
-    public function index(): string
+    public function index(): string|\CodeIgniter\HTTP\RedirectResponse
     {
+        if (!\App\Libraries\Auth::can('dashboard.ver')) {
+            return redirect()->to(\App\Libraries\Auth::can('productos.ver') ? '/inventario' : '/usuarios/perfil');
+        }
         $sucursalId = $this->sucursalId();
         $empresaId  = $this->empresaId();
         $depositoId = $this->depositoId();

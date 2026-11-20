@@ -345,5 +345,12 @@ $itbmsPct = (int) round(((float)($_ENV['ITBMS_RATE'] ?? 0.07)) * 100);
         </div>
     </div>
 
+<script>
+    (function () {
+        const q = new URLSearchParams(window.location.search);
+        if (q.get('volver') === 'pos') { window.addEventListener('afterprint', function () { location.href = '/ventas/pos'; }); }
+        if (q.get('auto')) { window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 500); }); }
+    })();
+</script>
 </body>
 </html>

@@ -158,10 +158,12 @@ function posCatFilter() {
                 <i class="fas fa-barcode"></i> Códigos de barras
             </a>
             <?php endif; ?>
+            <?php if (\App\Libraries\Auth::can('productos.crear')): ?>
             <a href="/inventario/nuevo"
                 class="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-semibold hover:bg-sky-600 transition shadow-sm">
                 <i class="fas fa-plus"></i> Nuevo
             </a>
+            <?php endif; ?>
         </div>
 
     </form>
@@ -176,7 +178,7 @@ function posCatFilter() {
                 <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Código</th>
                 <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ubicación</th>
                 <?php if (ver_costos()): ?><th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Costo</th><?php endif; ?>
-                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-sky-500 uppercase tracking-wider">Precio A</th>
+                <?php if (\App\Libraries\Auth::can('productos.ver_precio_a')): ?><th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-sky-500 uppercase tracking-wider">Precio A</th><?php endif; ?>
                 <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-emerald-500 uppercase tracking-wider">Precio B</th>
                 <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Precio C</th>
                 <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Inventario</th>
@@ -227,10 +229,12 @@ function posCatFilter() {
                 <td class="px-3 py-3 whitespace-nowrap text-base font-bold font-mono text-gray-900"><?= esc($pCodigo) ?></td>
                 <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold text-gray-700"><?php $pUbic = is_array($producto) ? ($producto['ubicacion'] ?? '') : ($producto->ubicacion ?? ''); ?><?= trim((string) $pUbic) !== '' ? esc($pUbic) : '<span class="text-gray-300">—</span>' ?></td>
                 <?php if (ver_costos()): ?><td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900">$<?= number_format((float)$costo, 2) ?></td><?php endif; ?>
+                <?php if (\App\Libraries\Auth::can('productos.ver_precio_a')): ?>
                 <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold text-sky-600">
                     <?php $precioA = is_array($producto) ? ($producto['precio_a'] ?? 0) : ($producto->precio_a ?? 0); ?>
                     <?= $precioA ? '$' . number_format((float)$precioA, 2) : '<span class="text-gray-300">—</span>' ?>
                 </td>
+                <?php endif; ?>
                 <td class="px-3 py-3 whitespace-nowrap text-sm font-semibold text-emerald-600">
                     <?php $precioB = is_array($producto) ? ($producto['precio_b'] ?? 0) : ($producto->precio_b ?? 0); ?>
                     <?= $precioB ? '$' . number_format((float)$precioB, 2) : '<span class="text-gray-300">—</span>' ?>
@@ -268,18 +272,22 @@ function posCatFilter() {
                 <td class="px-3 py-3 whitespace-nowrap text-right text-sm">
                     <div class="flex justify-end gap-1.5">
                         <a href="/inventario/<?= $pId ?>" class="w-8 h-8 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center justify-center shadow-sm shadow-blue-500/30" title="Ver"><i class="fas fa-eye text-xs"></i></a>
+                        <?php if (\App\Libraries\Auth::can('productos.editar')): ?>
                         <a href="/inventario/<?= $pId ?>/editar" class="w-8 h-8 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center justify-center shadow-sm shadow-amber-500/30" title="Editar"><i class="fas fa-edit text-xs"></i></a>
+                        <?php endif; ?>
+                        <?php if (\App\Libraries\Auth::can('productos.eliminar')): ?>
                         <form method="post" action="/inventario/<?= $pId ?>/eliminar" class="inline" onsubmit="return confirm('¿Eliminar este producto?')">
                             <?= csrf_field() ?>
                             <button type="submit" class="w-8 h-8 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center shadow-sm shadow-red-500/30" title="Eliminar"><i class="fas fa-trash text-xs"></i></button>
                         </form>
+                        <?php endif; ?>
                     </div>
                 </td>
             </tr>
             <?php endforeach; ?>
             <?php if (empty($productos)): ?>
             <tr>
-                <td colspan="9" class="px-4 py-10 text-center text-sm text-gray-400">
+                <td colspan="<?= \App\Libraries\Auth::can('productos.ver_precio_a') ? 9 : 8 ?>" class="px-4 py-10 text-center text-sm text-gray-400">
                     <i class="fas fa-box-open text-3xl mb-2 block text-gray-200"></i>
                     No se encontraron productos.
                     <a href="/inventario/nuevo" class="block mt-1 text-sky-500 hover:underline font-medium">Crear uno nuevo</a>

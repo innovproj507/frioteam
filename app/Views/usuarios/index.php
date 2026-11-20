@@ -7,12 +7,19 @@
             <h2 class="text-2xl font-bold text-slate-800">Usuarios</h2>
             <p class="text-slate-500 text-sm">Gestión de roles y accesos al sistema</p>
         </div>
+        <div class="flex items-center gap-2">
+        <?php if (Auth::can('usuarios.ver')): ?>
+        <a href="/configuracion/roles" class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-sky-200 text-sky-700 text-sm font-semibold rounded-xl hover:bg-sky-50 transition-colors">
+            <i class="fas fa-user-shield"></i> Roles y Permisos
+        </a>
+        <?php endif; ?>
         <?php if (Auth::can('usuarios.gestionar')): ?>
         <a href="/usuarios/nuevo"
            class="inline-flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
             <i class="fas fa-user-plus"></i> Nuevo Usuario
         </a>
         <?php endif; ?>
+        </div>
     </div>
 
     <?php
@@ -144,49 +151,43 @@
         </table>
     </div>
 
-    <!-- Tabla de permisos por rol (referencia) -->
+    <!-- Matriz de permisos por rol (lo que está vigente ahora, incluye lo que cambies en Roles y Permisos) -->
+    <?php
+    $matrizRoles = \App\Libraries\RolesService::matriz();
+    $colRoles    = ['vendedor' => 'text-sky-600', 'cajero' => 'text-gray-500', 'encargado' => 'text-teal-600', 'supervisor' => 'text-green-600', 'gerente' => 'text-blue-600', 'auditor' => 'text-amber-600'];
+    ?>
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-        <h4 class="font-semibold text-slate-700 mb-4">Matriz de permisos</h4>
+        <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+            <h4 class="font-semibold text-slate-700">Matriz de permisos</h4>
+            <?php if (Auth::can('usuarios.ver')): ?>
+            <a href="/configuracion/roles" class="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-sky-200 text-sky-700 text-xs font-semibold rounded-lg hover:bg-sky-50 transition-colors">
+                <i class="fas fa-user-shield"></i> Cambiar permisos de los roles
+            </a>
+            <?php endif; ?>
+        </div>
         <div class="overflow-x-auto">
         <table class="text-xs w-full">
             <thead>
                 <tr class="border-b">
                     <th class="py-2 text-left font-bold text-slate-500 pr-6">Permiso</th>
-                    <th class="py-2 text-center px-3 text-gray-500">Cajero</th>
-                    <th class="py-2 text-center px-3 text-green-600">Supervisor</th>
-                    <th class="py-2 text-center px-3 text-blue-600">Gerente</th>
-                    <th class="py-2 text-center px-3 text-amber-600">Auditor</th>
+                    <?php foreach ($colRoles as $r => $cls): ?>
+                    <th class="py-2 text-center px-3 <?= $cls ?>"><?= esc(\App\Libraries\RolesService::ROLES[$r]) ?></th>
+                    <?php endforeach; ?>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-50">
-                <?php
-                $matrix = [
-                    'Ventas — ver'            => ['ventas.ver',             true,  true,  true,  true],
-                    'Ventas — crear'           => ['ventas.crear',           true,  true,  true,  false],
-                    'Ventas — anular'          => ['ventas.anular',          false, true,  true,  false],
-                    'Aplicar descuentos'       => ['descuentos.aplicar',     false, true,  true,  false],
-                    'Cotizaciones'             => ['cotizaciones.crear',      true,  true,  true,  false],
-                    'Productos — ver'          => ['productos.ver',           true,  true,  true,  true],
-                    'Productos — crear/editar' => ['productos.crear',         false, false, true,  false],
-                    'Inventario — ver'         => ['inventario.ver',          false, true,  true,  true],
-                    'Inventario — ajustar'     => ['inventario.ajustar',      false, true,  true,  false],
-                    'Compras — ver'            => ['compras.ver',             false, false, true,  true],
-                    'Compras — crear'          => ['compras.crear',           false, false, true,  false],
-                    'Reportes básicos'         => ['reportes.ver',            false, true,  true,  true],
-                    'Reportes avanzados'       => ['reportes.avanzados',      false, false, true,  true],
-                    'Bitácora'                 => ['bitacora.ver',            false, false, true,  true],
-                    'Gestión usuarios'         => ['usuarios.gestionar',      false, false, true,  false],
-                ];
-                foreach ($matrix as $label => [$perm, $cajero, $supervisor, $gerente, $auditor]):
-                ?>
+                <?php foreach (\App\Libraries\RolesService::catalogo() as $grupo => $permisos): ?>
+                <tr><td colspan="<?= count($colRoles) + 1 ?>" class="pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400"><?= esc($grupo) ?></td></tr>
+                <?php foreach ($permisos as $codigo => $etiqueta): ?>
                 <tr>
-                    <td class="py-1.5 pr-6 font-medium text-slate-700"><?= $label ?></td>
-                    <?php foreach ([$cajero, $supervisor, $gerente, $auditor] as $tiene): ?>
+                    <td class="py-1.5 pr-6 font-medium text-slate-700"><?= esc($etiqueta) ?></td>
+                    <?php foreach ($colRoles as $r => $cls): ?>
                     <td class="py-1.5 text-center px-3">
-                        <?= $tiene ? '<span class="text-green-600 font-bold">✓</span>' : '<span class="text-slate-200">—</span>' ?>
+                        <?= in_array($codigo, $matrizRoles[$r] ?? [], true) ? '<span class="text-green-600 font-bold">✓</span>' : '<span class="text-slate-200">—</span>' ?>
                     </td>
                     <?php endforeach; ?>
                 </tr>
+                <?php endforeach; ?>
                 <?php endforeach; ?>
             </tbody>
         </table>

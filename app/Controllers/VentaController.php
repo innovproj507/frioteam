@@ -26,6 +26,8 @@ class VentaController extends BaseController
         $clienteId   = (string) ($this->request->getGet('cliente') ?? '');
         $origen      = (string) ($this->request->getGet('origen') ?? '');
         if (!in_array($origen, ['pos', 'normal'], true)) $origen = '';
+        $soloPos = !\App\Libraries\Auth::can('ventas.ver_normales');
+        if ($soloPos) $origen = 'pos'; // este rol solo ve las ventas del POS
         $sucursalId  = $this->sucursalId();
 
         $where  = 'v.sucursal_id = ?';
@@ -108,6 +110,7 @@ class VentaController extends BaseController
 
         return $this->render('ventas.lista', [
             'origen_actual'       => $origen,
+            'solo_pos'            => $soloPos,
             'conteo_origen'       => $conteoOrigen,
             'page_title'          => 'Ventas',
             'page_subtitle'       => 'Gestión de ventas y cotizaciones',
@@ -181,8 +184,18 @@ class VentaController extends BaseController
     }
 
     /** GET /ventas/venta/{id}/factura — factura en hoja con el formato del sistema anterior (ver / imprimir). */
+    /** Roles sin 'ventas.ver_normales' no abren ventas que no sean del POS (ni por la dirección directa). */
+    private function ventaSoloNormales(int $ventaId): bool
+    {
+        if (\App\Libraries\Auth::can('ventas.ver_normales')) {
+            return false;
+        }
+        return (string) Db::value("SELECT origen FROM ventas WHERE venta_id = ? AND sucursal_id = ?", [$ventaId, $this->sucursalId()]) !== 'pos';
+    }
+
     public function factura(int $id)
     {
+        if ($this->ventaSoloNormales($id)) { $this->error('No tienes permiso para ver esa venta.'); return redirect()->to('/ventas'); }
         $datos = \App\Libraries\FacturaVenta::datos($id, $this->sucursalId());
         if (!$datos) {
             $this->error('Venta no encontrada.');
@@ -194,6 +207,7 @@ class VentaController extends BaseController
     /** GET /ventas/venta/{id}/factura/pdf — la misma factura en PDF. */
     public function facturaPdf(int $id)
     {
+        if ($this->ventaSoloNormales($id)) { $this->error('No tienes permiso para ver esa venta.'); return redirect()->to('/ventas'); }
         $datos = \App\Libraries\FacturaVenta::datos($id, $this->sucursalId());
         if (!$datos) {
             $this->error('Venta no encontrada.');
@@ -458,6 +472,7 @@ class VentaController extends BaseController
 
     public function detalle(int $ventaId)
     {
+        if ($this->ventaSoloNormales($ventaId)) { $this->error('No tienes permiso para ver esa venta.'); return redirect()->to('/ventas'); }
         $venta = Db::row(
             "SELECT v.*, c.nombre AS cliente_nombre, c.ruc AS cliente_ruc, u.username AS vendedor_nombre,
                     b.nombre AS sucursal_nombre, b.direccion AS sucursal_direccion, b.telefono AS sucursal_telefono,
@@ -665,8 +680,15 @@ class VentaController extends BaseController
         $depI  = $depId > 0 ? " AND i.deposito_id = {$depId}" : '';
         $depI2 = $depId > 0 ? " AND i2.deposito_id = {$depId}" : '';
 
+        // Ubicación (stand) del producto en los dos primeros depósitos de la tienda: columnas Lugar / Lugar(2) del POS
+        $deps = array_values(\App\Libraries\SucursalService::depositosDe((int) $sucursalId));
+        $dep1 = (int) ($deps[0]['deposito_id'] ?? 0);
+        $dep2 = (int) ($deps[1]['deposito_id'] ?? 0);
+
         $base = "SELECT p.producto_id, p.codigo, p.nombre, p.codigo_barras, p.supplier_part_no, p.itbms, p.unidad_medida, {$costo}
                         p.maneja_lotes, p.imagen_principal, p.marca AS lugar2,
+                        (SELECT i.ubicacion FROM inventario i WHERE i.producto_id = p.producto_id AND i.deposito_id = {$dep1} LIMIT 1) AS ubic1,
+                        (SELECT i.ubicacion FROM inventario i WHERE i.producto_id = p.producto_id AND i.deposito_id = {$dep2} LIMIT 1) AS ubic2,
                         (SELECT d.nombre FROM inventario i
                            JOIN depositos d ON i.deposito_id = d.deposito_id
                           WHERE i.producto_id = p.producto_id AND d.sucursal_id = ? AND i.existencia > 0{$depI}

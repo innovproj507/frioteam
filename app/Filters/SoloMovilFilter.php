@@ -16,7 +16,7 @@ use CodeIgniter\HTTP\ResponseInterface;
  */
 class SoloMovilFilter implements FilterInterface
 {
-    public const ROLES = ['vendedor'];
+    public const ROLES = []; // (antes: ['vendedor']) ningún rol queda limitado al celular
 
     /** Prefijos de ruta permitidos (sin barra inicial). */
     private const PERMITIDAS = [

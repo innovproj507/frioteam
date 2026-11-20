@@ -90,7 +90,41 @@ class ConfiguracionController extends BaseController
 
     public function roles(): string
     {
-        return $this->render('configuracion.roles', ['page_title' => 'Roles y Permisos', 'page_subtitle' => 'Gestión de seguridad']);
+        $rol = (string) ($this->request->getGet('rol') ?? 'vendedor');
+        if (!isset(\App\Libraries\RolesService::ROLES[$rol])) $rol = 'vendedor';
+        return $this->render('configuracion.roles', [
+            'page_title'    => 'Roles y Permisos',
+            'page_subtitle' => 'Qué puede hacer cada rol',
+            'roles'         => \App\Libraries\RolesService::ROLES,
+            'rol'           => $rol,
+            'catalogo'      => \App\Libraries\RolesService::catalogo(),
+            'activos'       => \App\Libraries\RolesService::matriz()[$rol] ?? [],
+            'personalizado' => \App\Libraries\RolesService::personalizado($rol),
+            'usuarios_rol'  => (int) \App\Libraries\Db::value("SELECT COUNT(*) FROM users WHERE rol = ? AND is_active = 1", [$rol]),
+        ]);
+    }
+
+    public function guardarRol()
+    {
+        $rol = (string) $this->request->getPost('rol');
+        if (!isset(\App\Libraries\RolesService::ROLES[$rol])) {
+            $this->error('Rol no válido.');
+            return redirect()->to('/configuracion/roles');
+        }
+        \App\Libraries\RolesService::guardar($rol, (array) ($this->request->getPost('permisos') ?? []));
+        AuditService::log('roles.permisos', 'Permisos del rol ' . $rol . ' actualizados', null, 'rol', [], $this->empresaId());
+        $this->success('Permisos del rol ' . \App\Libraries\RolesService::ROLES[$rol] . ' guardados. Aplican la próxima vez que cada usuario abra una página.');
+        return redirect()->to('/configuracion/roles?rol=' . $rol);
+    }
+
+    public function restaurarRol()
+    {
+        $rol = (string) $this->request->getPost('rol');
+        if (isset(\App\Libraries\RolesService::ROLES[$rol])) {
+            \App\Libraries\RolesService::restaurar($rol);
+            $this->success('El rol ' . \App\Libraries\RolesService::ROLES[$rol] . ' volvió a sus permisos originales.');
+        }
+        return redirect()->to('/configuracion/roles?rol=' . $rol);
     }
 
     public function impresoras(): string

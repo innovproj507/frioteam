@@ -12,6 +12,6 @@ return [
     'menu_order'   => 40,
     'menu' => [
         ['type' => 'section', 'label' => 'Reportes'],
-        ['type' => 'link', 'label' => 'Reportes', 'icon' => 'fas fa-chart-bar', 'href' => '/reportes'],
+        ['type' => 'link', 'label' => 'Reportes', 'icon' => 'fas fa-chart-bar', 'href' => '/reportes', 'permission' => 'reportes.ver'],
     ],
 ];

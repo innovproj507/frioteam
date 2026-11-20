@@ -33,10 +33,10 @@ $routes->group('', ['filter' => ['auth', 'sucursal']], static function ($routes)
     $routes->get('ventas/venta/(:num)/factura/pdf', 'VentaController::facturaPdf/$1', ['filter' => 'permiso:ventas.ver,pos.usar']);
 
     // Caja con arqueo: la propia (caja.usar) y el historial de todas (cajas.ver)
-    $routes->get('caja', 'CajaController::miCaja', ['filter' => 'permiso:caja.usar']);
+    $routes->get('caja', 'CajaController::miCaja', ['filter' => 'permiso:caja.mi_caja']);
     $routes->post('caja/abrir', 'CajaController::abrir', ['filter' => 'permiso:caja.usar']);
     $routes->post('caja/movimiento', 'CajaController::movimiento', ['filter' => 'permiso:caja.usar']);
-    $routes->post('caja/cerrar', 'CajaController::cerrar', ['filter' => 'permiso:caja.usar,cajas.gestionar']);
+    $routes->post('caja/cerrar', 'CajaController::cerrar', ['filter' => 'permiso:caja.mi_caja,cajas.gestionar']);
     $routes->get('cajas', 'CajaController::index', ['filter' => 'permiso:cajas.ver']);
     $routes->get('cajas/(:num)', 'CajaController::detalle/$1', ['filter' => 'permiso:caja.usar,cajas.ver']);
 
@@ -51,10 +51,11 @@ $routes->group('', ['filter' => ['auth', 'sucursal']], static function ($routes)
     // Cotizaciones
     $routes->get('ventas/cotizaciones', 'CotizacionController::index', ['filter' => 'permiso:cotizaciones.ver']);
     $routes->get('ventas/cotizaciones/nueva', 'CotizacionController::crear', ['filter' => 'permiso:cotizaciones.crear']);
-    $routes->post('ventas/cotizaciones/guardar', 'CotizacionController::guardar', ['filter' => 'permiso:cotizaciones.crear']);
+    $routes->post('ventas/cotizaciones/guardar', 'CotizacionController::guardar', ['filter' => 'permiso:cotizaciones.crear,pos.usar']);
+    $routes->post('ventas/cotizaciones/(:num)/imprimir-cups', 'CotizacionController::imprimirCups/$1', ['filter' => 'permiso:cotizaciones.ver,pos.usar']);
     $routes->get('ventas/cotizaciones/pos/pendientes', 'CotizacionController::pendientesPos');
     $routes->get('ventas/cotizaciones/(:num)', 'CotizacionController::detalle/$1', ['filter' => 'permiso:cotizaciones.ver']);
-    $routes->get('ventas/cotizaciones/(:num)/imprimir', 'CotizacionController::imprimir/$1', ['filter' => 'permiso:cotizaciones.ver']);
+    $routes->get('ventas/cotizaciones/(:num)/imprimir', 'CotizacionController::imprimir/$1', ['filter' => 'permiso:cotizaciones.ver,pos.usar']);
     $routes->get('ventas/cotizaciones/(:num)/pdf', 'CotizacionController::descargarPdf/$1', ['filter' => 'permiso:cotizaciones.ver']);
     $routes->get('ventas/cotizaciones/(:num)/items-pos', 'CotizacionController::itemsPos/$1');
     $routes->post('ventas/cotizaciones/(:num)/convertir', 'CotizacionController::convertir/$1', ['filter' => 'permiso:ventas.crear']);

@@ -287,6 +287,36 @@
                         </div>
                     </div>
                     <div class="overflow-auto h-[calc(100%-60px)]">
+                        <div id="contenedor-busqueda" class="hidden border-b-4 border-gray-200">
+                            <div class="px-3 py-1 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-200" id="titulo-resultados">Resultados</div>
+                            <table class="min-w-full divide-y divide-gray-200" id="tabla-busqueda">
+                                <thead class="text-white" style="background:#3e86c8">
+                                    <tr>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-white">Lugar</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-white">Lugar(2)</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-white">Código</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-white">Descripción</th>
+                                        <th class="px-3 py-3 text-center text-xs font-bold text-white">Cantidad</th>
+                                        <th class="px-3 py-3 text-center text-xs font-bold text-white">Precio(A)</th>
+                                        <th class="px-3 py-3 text-center text-xs font-bold text-white">Precio(B)</th>
+                                        <th class="px-3 py-3 text-center text-xs font-bold text-white">Precio(C)</th>
+                                        <th class="px-3 py-3 text-center text-xs font-bold text-white">Imagen</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cuerpo-busqueda" class="bg-white divide-y divide-gray-200">
+                                    <!-- Los resultados de búsqueda se cargarán aquí -->
+                                </tbody>
+                            </table>
+
+                            <!-- Paginación para resultados de búsqueda -->
+                            <div id="paginacion-busqueda" class="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                                <div class="flex justify-between items-center">
+                                    <div class="text-sm text-gray-700" id="info-paginacion"></div>
+                                    <div class="flex space-x-1" id="controles-paginacion"></div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div id="contenedor-carrito">
                             <table class="min-w-full divide-y divide-gray-200" id="tabla-carrito">
                                 <thead class="text-white" style="background:#3e86c8">
@@ -314,34 +344,6 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div id="contenedor-busqueda" class="hidden">
-                            <table class="min-w-full divide-y divide-gray-200" id="tabla-busqueda">
-                                <thead class="bg-pos text-white">
-                                    <tr>
-                                        <th class="px-3 py-3 text-left text-xs font-medium uppercase">N°</th>
-                                        <th class="px-3 py-3 text-left text-xs font-medium uppercase">Código</th>
-                                        <th class="px-3 py-3 text-left text-xs font-medium uppercase">Descripción</th>
-                                        <th class="px-3 py-3 text-center text-xs font-medium uppercase">Cantidad</th>
-                                        <th class="px-3 py-3 text-center text-xs font-medium uppercase">Precio A</th>
-                                        <th class="px-3 py-3 text-center text-xs font-medium uppercase">Precio B</th>
-                                        <th class="px-3 py-3 text-center text-xs font-medium uppercase">Precio C</th>
-                                        <th class="px-3 py-3 text-center text-xs font-medium uppercase">Imagen</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="cuerpo-busqueda" class="bg-white divide-y divide-gray-200">
-                                    <!-- Los resultados de búsqueda se cargarán aquí -->
-                                </tbody>
-                            </table>
-
-                            <!-- Paginación para resultados de búsqueda -->
-                            <div id="paginacion-busqueda" class="px-4 py-3 bg-gray-50 border-t border-gray-200">
-                                <div class="flex justify-between items-center">
-                                    <div class="text-sm text-gray-700" id="info-paginacion"></div>
-                                    <div class="flex space-x-1" id="controles-paginacion"></div>
-                                </div>
-                            </div>
-                        </div>
-
                     </div>
                 </div>
             </div>
@@ -626,9 +628,8 @@
                 clearTimeout(window._posSearchTimer);
                 const q = this.value.trim();
                 document.getElementById('btn-limpiar-busqueda').classList.toggle('hidden', this.value.length === 0);
-                if (q.length >= 2) {
-                    window._posSearchTimer = setTimeout(() => buscarProductos(q), 400);
-                } else if (q.length === 0) {
+                // La búsqueda se hace solo al presionar Enter (no mientras se escribe)
+                if (q.length === 0) {
                     volverAlCarrito();
                 }
             });
@@ -817,8 +818,10 @@
         /** Precio y presentación de un resultado: si se escaneó el código de una caja/paca, esa presentación. */
         function lineaEscaneada(p) {
             const u = p.unidad_escaneada ? (p.unidades || []).find(x => parseInt(x.unidad_id, 10) === parseInt(p.unidad_escaneada, 10)) : null;
-            if (u) return [parseFloat(u.precio_a) || 0, parseInt(u.unidad_id, 10), u.nombre];
-            return [parseFloat(p.precio_a) || 0, null, 'Unid.'];
+            if (u) return [parseFloat(u.precio_a) || 0, parseInt(u.unidad_id, 10), u.nombre, 'a'];
+            // Precio por defecto: el Precio(C); si el producto no lo tiene, el Precio(A)
+            const pc = parseFloat(p.precio_c) || 0;
+            return pc > 0 ? [pc, null, 'Unid.', 'c'] : [parseFloat(p.precio_a) || 0, null, 'Unid.', 'a'];
         }
 
         function buscarProductos(q) {
@@ -828,11 +831,16 @@
                     resultadosBusqueda = data.productos || [];
                     if (resultadosBusqueda.length === 1) {
                         const p = resultadosBusqueda[0];
-                        const [pr, uid, unom] = lineaEscaneada(p);
-                        agregarAlCarrito(p, 'a', pr, uid, unom);
+                        const [pr, uid, unom, tp] = lineaEscaneada(p);
+                        if (filaEditando !== null) {
+                            reemplazarEnCarrito(filaEditando, p, tp, pr, uid, unom);
+                        } else {
+                            agregarAlCarrito(p, tp, pr, uid, unom);
+                        }
                         volverAlCarrito();
                     } else if (resultadosBusqueda.length > 1) {
                         paginaActual = 1;
+                        resultadosConCarrito = false;
                         mostrarResultados();
                     } else {
                         toast('No se encontraron productos', 'info');
@@ -844,9 +852,12 @@
                 });
         }
 
+        // true = los resultados salen arriba y el carrito se queda abajo (lápiz); false = solo se ve lo buscado (Enter)
+        let resultadosConCarrito = false;
+
         function mostrarResultados() {
-            elementosDOM.tituloTabla.textContent = `Resultados: ${resultadosBusqueda.length} encontrados`;
-            elementosDOM.contenedorCarrito.classList.add('hidden');
+            document.getElementById('titulo-resultados').textContent = `Resultados: ${resultadosBusqueda.length} encontrados`;
+            elementosDOM.contenedorCarrito.classList.toggle('hidden', !resultadosConCarrito);
             elementosDOM.contenedorBusqueda.classList.remove('hidden');
             document.getElementById('btn-cerrar-busqueda').classList.remove('hidden');
 
@@ -858,7 +869,7 @@
             const pagina = resultadosBusqueda.slice(inicio, fin);
 
             if (pagina.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500">Sin resultados</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">Sin resultados</td></tr>`;
             } else {
                 const btnPrecio = (id, tipo, valor, color) =>
                     `<button onclick="seleccionarYAgregar(${id}, '${tipo}', ${valor}, null, 'Unid.')" class="block w-full h-12 ${color} text-white text-sm font-bold rounded transition-colors">$${valor.toFixed(2)}</button>`;
@@ -889,8 +900,9 @@
                     const tr = document.createElement('tr');
                     tr.className = filaColor + " transition-colors";
                     tr.innerHTML = `
-                        <td class="px-3 py-0.5 text-sm text-gray-400">${inicio + idx + 1}</td>
-                        <td class="px-3 py-0.5 text-xs font-mono text-gray-500">${escHtml(p.codigo)}</td>
+                        <td class="px-3 py-0.5 text-xs font-semibold text-gray-700 whitespace-nowrap">${escHtml(p.ubic1 || '')}</td>
+                        <td class="px-3 py-0.5 text-xs font-semibold text-gray-700 whitespace-nowrap">${escHtml(p.ubic2 || '')}</td>
+                        <td class="px-3 py-0.5 text-xs font-mono text-gray-600">${escHtml(p.codigo)}</td>
                         <td class="px-3 py-0.5">
                             <div class="text-sm font-semibold text-gray-900">${escHtml(p.nombre)}</div>
                             ${presentaciones}
@@ -920,23 +932,18 @@
         }
 
         function volverAlCarrito() {
-            elementosDOM.tituloTabla.textContent = 'Carrito de Venta';
-            elementosDOM.contenedorCarrito.classList.remove('hidden');
             elementosDOM.contenedorBusqueda.classList.add('hidden');
+            elementosDOM.contenedorCarrito.classList.remove('hidden');
+            resultadosConCarrito = false;
             elementosDOM.txcodigo.value = '';
             // La casilla del carrito también queda limpia y sin búsquedas en vivo pendientes
             cancelarBusquedaViva();
             filaEditando = null;
             marcarFilaEditando(-1);
-            const filaCodigo = document.getElementById('input-nueva-linea');
-            if (filaCodigo) { filaCodigo.value = ''; filaCodigo.placeholder = 'Código o descripción...'; }
+            elementosDOM.txcodigo.placeholder = 'Buscar producto por código o nombre...';
             document.getElementById('btn-cerrar-busqueda').classList.add('hidden');
             document.getElementById('btn-limpiar-busqueda').classList.add('hidden');
-            setTimeout(() => {
-                const inp = document.getElementById('input-nueva-linea');
-                if (inp) inp.focus();
-                else elementosDOM.txcodigo.focus();
-            }, 30);
+            setTimeout(() => elementosDOM.txcodigo.focus(), 30);
         }
 
         // Cancela la búsqueda actual: borra el texto, cierra resultados y deja el cursor listo para otro código
@@ -944,6 +951,25 @@
             clearTimeout(window._posSearchTimer);
             volverAlCarrito();
             setTimeout(() => elementosDOM.txcodigo.focus(), 50);
+        }
+
+        // Lápiz junto a la cantidad: muestra ese producto en la tabla de resultados (Lugar, Lugar(2), Código, Descripción,
+        // Cantidad en stock, Precio(A), Precio(B), Precio(C) e Imagen) para elegir otro precio. Esc cierra sin cambiar nada.
+        async function editarPrecioFila(i) {
+            const item = carrito[i];
+            if (!item) return;
+            try {
+                const r = await fetch('/api/productos/buscar?q=' + encodeURIComponent(item.codigo));
+                const d = await r.json();
+                const lista = (d.productos || []).filter(x => String(x.producto_id) === String(item.id));
+                if (!lista.length) { toast('No se encontró el producto para mostrar sus precios', 'error'); return; }
+                resultadosBusqueda = lista;
+                paginaActual = 1;
+                filaEditando = i;          // al elegir un precio, se aplica a esta línea (conserva cantidad y descuento)
+                resultadosConCarrito = true;
+                mostrarResultados();
+                marcarFilaEditando(i);
+            } catch (e) { toast('No se pudieron cargar los precios', 'error'); }
         }
 
         // Foto del producto en grande (modal). Esc o clic fuera la cierra.
@@ -964,7 +990,8 @@
         }, true);
 
         function agregarAlCarrito(p, tipo, precio, unidadId = null, presentacion = 'Unid.') {
-            const index = carrito.findIndex(item => item.id == p.producto_id && item.tipo == tipo && item.unidad_id == unidadId);
+            // Si el producto ya está en el carrito (misma presentación), se suma la cantidad a esa línea, sea cual sea el precio elegido
+            const index = carrito.findIndex(item => item.id == p.producto_id && item.unidad_id == unidadId);
             if (index !== -1) {
                 carrito[index].cantidad++;
             } else {
@@ -974,6 +1001,7 @@
                     nombre: p.nombre,
                     ubic1: p.ubic1 || '',
                     ubic2: p.ubic2 || '',
+                    precios: { a: parseFloat(p.precio_a) || 0, b: parseFloat(p.precio_b) || 0, c: parseFloat(p.precio_c) || 0 },
                     precio: parseFloat(precio),
                     tipo: tipo,
                     cantidad: 1,
@@ -992,8 +1020,7 @@
         function editarProductoFila(i) {
             if (!carrito[i]) return;
             filaEditando = i;
-            const inp = document.getElementById('input-nueva-linea');
-            if (!inp) return;
+            const inp = elementosDOM.txcodigo;
             inp.value = '';
             inp.placeholder = 'Nuevo código para "' + carrito[i].nombre + '"...';
             inp.focus();
@@ -1010,8 +1037,8 @@
             if (filaEditando === null) return;
             filaEditando = null;
             marcarFilaEditando(-1);
-            const inp = document.getElementById('input-nueva-linea');
-            if (inp) { inp.value = ''; inp.placeholder = 'Código o descripción...'; }
+            elementosDOM.txcodigo.value = '';
+            elementosDOM.txcodigo.placeholder = 'Buscar producto por código o nombre...';
         }
 
         // Reemplaza el producto de la línea "i" conservando cantidad y descuento
@@ -1024,6 +1051,7 @@
                 nombre: p.nombre,
                 ubic1: p.ubic1 || '',
                 ubic2: p.ubic2 || '',
+                precios: { a: parseFloat(p.precio_a) || 0, b: parseFloat(p.precio_b) || 0, c: parseFloat(p.precio_c) || 0 },
                 precio: parseFloat(precio),
                 tipo: tipo,
                 unidad_id: unidadId,
@@ -1054,8 +1082,8 @@
                     <td class="px-3 py-0.5 cursor-pointer" ondblclick="editarProductoFila(${i})" title="Doble clic para cambiar el producto">
                         <span class="text-sm font-medium text-gray-900 line-clamp-1">${escHtml(item.nombre)}${item.presentacion && item.presentacion !== 'Unid.' ? ' <span class="text-[11px] text-sky-600 font-semibold">(' + escHtml(item.presentacion) + ')</span>' : ''}</span>
                     </td>
-                    <td class="px-3 py-0.5 text-center">
-                        <input type="number" min="0.01" step="any" value="${item.cantidad}" class="w-14 h-6 text-center border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos" onchange="cambiarCantidad(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
+                    <td class="px-3 py-0.5 text-center whitespace-nowrap">
+                        <button type="button" onclick="editarPrecioFila(${i})" class="w-6 h-6 mr-1 rounded text-sky-600 hover:text-white hover:bg-sky-500 transition-colors align-middle" title="Ver y elegir otro precio (A, B o C)"><i class="fas fa-pen-to-square text-xs"></i></button><input type="number" min="0.01" step="any" value="${item.cantidad}" class="w-14 h-6 text-center border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos" onchange="cambiarCantidad(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
                     </td>
                     <td class="px-3 py-0.5 text-center">
                         <input type="number" step="0.01" min="0" value="${item.precio.toFixed(2)}" class="w-20 h-6 text-right border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos bg-gray-50" onchange="cambiarPrecio(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
@@ -1068,35 +1096,9 @@
                 tbody.appendChild(tr);
             });
 
-            // Fila de entrada de código — siempre visible al final
-            const trNueva = document.createElement('tr');
-            trNueva.id = 'fila-nueva-linea';
-            trNueva.className = 'bg-white';
-            trNueva.innerHTML = `
-                <td class="px-3 py-1 text-xs text-gray-300">${carrito.length + 1}</td>
-                <td colspan="4" class="px-3 py-1">
-                    <input type="text" id="input-nueva-linea"
-                        placeholder="Código o descripción..."
-                        autocomplete="off"
-                        class="w-full max-w-md border-b border-dashed border-gray-300 text-sm text-gray-700 focus:outline-none focus:border-pos py-1 bg-transparent placeholder-gray-300">
-                </td>
-                <td colspan="4" class="px-3 py-1 text-xs text-gray-300 italic">Escriba código o descripción: los resultados aparecen al escribir</td>
-            `;
-            tbody.appendChild(trNueva);
-
-            const inpLinea = document.getElementById('input-nueva-linea');
-            inpLinea.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    cancelarBusquedaViva();
-                    agregarPorCodigo(this.value);
-                }
-            });
-            inpLinea.addEventListener('input', function() { buscarEnVivo(this.value); });
-
-            // Si la tabla se redibuja mientras se edita una línea (doble clic), conserva el aviso
+            // Si se está cambiando el producto de una línea (doble clic), se conserva el aviso en el buscador de arriba
             if (filaEditando !== null && carrito[filaEditando]) {
-                inpLinea.placeholder = 'Nuevo código para "' + carrito[filaEditando].nombre + '"...';
+                elementosDOM.txcodigo.placeholder = 'Nuevo código para "' + carrito[filaEditando].nombre + '"...';
                 marcarFilaEditando(filaEditando);
             }
 
@@ -1116,33 +1118,6 @@
             busquedaVivaSeq++;
         }
 
-        function buscarEnVivo(valor) {
-            clearTimeout(busquedaVivaTimer);
-            const q = (valor || '').trim();
-            const seq = ++busquedaVivaSeq;
-            if (q.length < 2) return;
-            busquedaVivaTimer = setTimeout(function() {
-                fetch('/api/productos/buscar?q=' + encodeURIComponent(q))
-                    .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
-                    .then(function(data) {
-                        const inp = document.getElementById('input-nueva-linea');
-                        // Descarta respuestas viejas: el usuario siguió escribiendo o salió de la casilla
-                        if (seq !== busquedaVivaSeq || !inp || document.activeElement !== inp) return;
-                        const productos = data.productos || [];
-                        if (productos.length === 0) return;
-                        resultadosBusqueda = productos;
-                        paginaActual = 1;
-                        mostrarResultados();
-                        const top = elementosDOM.txcodigo;
-                        top.value = inp.value;
-                        document.getElementById('btn-limpiar-busqueda').classList.remove('hidden');
-                        top.focus();
-                        top.setSelectionRange(top.value.length, top.value.length);
-                    })
-                    .catch(function(e) { console.error('Búsqueda en vivo:', e); });
-            }, 300);
-        }
-
         function agregarPorCodigo(codigo) {
             const q = (codigo || '').trim();
             if (!q) return;
@@ -1156,19 +1131,17 @@
                     const productos = data.productos || [];
                     if (productos.length === 1) {
                         const p = productos[0];
-                        const [pr, uid, unom] = lineaEscaneada(p);
+                        const [pr, uid, unom, tp] = lineaEscaneada(p);
                         if (filaEditando !== null) {
-                            reemplazarEnCarrito(filaEditando, p, 'a', pr, uid, unom);
+                            reemplazarEnCarrito(filaEditando, p, tp, pr, uid, unom);
                         } else {
-                            agregarAlCarrito(p, 'a', pr, uid, unom);
+                            agregarAlCarrito(p, tp, pr, uid, unom);
                         }
-                        setTimeout(() => {
-                            const inp = document.getElementById('input-nueva-linea');
-                            if (inp) { inp.value = ''; inp.focus(); }
-                        }, 30);
+                        setTimeout(() => { elementosDOM.txcodigo.value = ''; elementosDOM.txcodigo.focus(); }, 30);
                     } else if (productos.length > 1) {
                         resultadosBusqueda = productos;
                         paginaActual = 1;
+                        resultadosConCarrito = false;
                         mostrarResultados();
                         // Deja el término en el buscador superior para poder afinarlo o limpiarlo
                         elementosDOM.txcodigo.value = q;
@@ -1176,10 +1149,7 @@
                         elementosDOM.txcodigo.focus();
                     } else {
                         toast('Producto no encontrado: ' + q, 'info');
-                        setTimeout(() => {
-                            const inp = document.getElementById('input-nueva-linea');
-                            if (inp) inp.select();
-                        }, 30);
+                        setTimeout(() => elementosDOM.txcodigo.select(), 30);
                     }
                 })
                 .catch(e => {
@@ -1345,24 +1315,7 @@
                 carrito = [];
                 pagos = [{ forma_pago: 'EFECTIVO', monto: 0 }];
                 guardarCarritoLocal();
-                // COTIZAR: además de guardar la cotización, la imprime (CUPS directo, o la hoja con el diálogo de impresión)
-                if (tipoDoc === 'cotizacion' && res.cotizacion_id) {
-                    if (IMPRESION_POS === 'cups') {
-                        try {
-                            const rc = await fetch('/ventas/cotizaciones/' + encodeURIComponent(res.cotizacion_id) + '/imprimir-cups', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '<?= csrf_hash() ?>', 'X-Requested-With': 'XMLHttpRequest' },
-                                body: '{}'
-                            });
-                            const jc = await rc.json().catch(() => ({}));
-                            if (!rc.ok || jc.ok !== true) throw new Error(jc.error || 'La impresora no confirmó la cotización');
-                            toast('Cotización ' + (res.numero || '') + ' enviada a la impresora', 'success');
-                        } catch (e) { toast(e.message, 'error', 7000); }
-                    } else {
-                        location.href = '/ventas/cotizaciones/' + res.cotizacion_id + '/imprimir?auto=1&volver=pos';
-                        return;
-                    }
-                }
+                // COTIZAR solo guarda la cotización (no imprime)
                 // El botón IMPRIMIR saca el ticket de esta venta después de recargar
                 if (tipoDoc === 'venta' && res.venta_id) { try { localStorage.setItem('pos_ultima_venta', String(res.venta_id)); } catch (e) {} }
                 // Con impresora de red en modo automático, el ticket sale solo al cobrar

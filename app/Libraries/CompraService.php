@@ -1,0 +1,313 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Libraries;
+
+/**
+ * Compras a proveedor: registro (recibida o como orden pendiente) y recepción de líneas
+ * con costo promedio ponderado y lotes. Lo usan la web, la PWA y la API.
+ * El llamador abre y cierra la transacción.
+ */
+final class CompraService
+{
+    /**
+     * $data: proveedor_id?, numero_factura?, fecha_compra?, notas?, subtotal?, itbms?, total?,
+     *        guardar_como_pendiente?, items[{producto_id, cantidad, costo, deposito_id?, unidad_id?,
+     *        factor?, itbms?, precio_a/b/c?, numero_lote?, fecha_vencimiento?, fecha_fabricacion?}]
+     * $ctx:  empresa_id, sucursal_id, deposito_id (por defecto)
+     *
+     * @return int compra_id
+     */
+    public static function registrar(array $data, array $ctx): int
+    {
+        $items = $data['items'] ?? [];
+        if (empty($items)) {
+            throw new \RuntimeException('Agrega al menos un producto.');
+        }
+
+        $esPendiente       = !empty($data['guardar_como_pendiente']);
+        $depositoPrincipal = (int) ($items[0]['deposito_id'] ?? 0) ?: (int) ($ctx['deposito_id'] ?? 0);
+        // Número de la compra: automático (Configuración → Nomenclatura, ej. COMP-S-2026-000001).
+        // El de la factura del proveedor es opcional (hay proveedores que no dan factura).
+        $numero    = NumeracionService::siguiente('compra', (int) $ctx['empresa_id'], (int) $ctx['sucursal_id']);
+        $proveedor = self::facturaProveedor($data);
+        $factura   = self::etiqueta($numero, $proveedor);
+
+        // Si no vienen totales se calculan de las líneas
+        $calculado = round(array_sum(array_map(fn ($i) => round((float) $i['cantidad'] * (float) $i['costo'], 2), $items)), 2);
+        $total     = isset($data['total']) ? (float) $data['total'] : $calculado;
+
+        $compraId = Db::insert('compras', [
+            'proveedor_id'             => !empty($data['proveedor_id']) ? (int) $data['proveedor_id'] : null,
+            'sucursal_id'              => $ctx['sucursal_id'],
+            'empresa_id'               => $ctx['empresa_id'],
+            'deposito_id'              => $depositoPrincipal,
+            'numero_factura'           => $numero,
+            'numero_factura_proveedor' => $proveedor !== '' ? $proveedor : null,
+            'monto_subtotal'           => isset($data['subtotal']) ? (float) $data['subtotal'] : $calculado,
+            'monto_itbms'              => (float) ($data['itbms'] ?? 0),
+            'monto_total'              => $total,
+            'estado'                   => $esPendiente ? 'pendiente' : 'recibida',
+            'fecha_compra'             => $data['fecha_compra'] ?? date('Y-m-d'),
+            'notas'                    => $data['notas'] ?? '',
+            'usuario_id'               => Auth::id(),
+        ]);
+
+        self::guardarLineas($compraId, $items, $depositoPrincipal, $ctx, $esPendiente, $factura);
+
+        return $compraId;
+    }
+
+    /**
+     * Edita una orden pendiente (agregar/quitar productos, cantidades, costos, proveedor…).
+     * Solo si no se ha recibido nada: reemplaza todas sus líneas. Mismos $data que registrar().
+     */
+    public static function actualizarPendiente(int $compraId, array $data, array $ctx): void
+    {
+        $compra = Db::row("SELECT * FROM compras WHERE compra_id = ? AND empresa_id = ? FOR UPDATE", [$compraId, $ctx['empresa_id']]);
+        if (!$compra) {
+            throw new \RuntimeException('Compra no encontrada.');
+        }
+        if ($compra['estado'] !== 'pendiente'
+            || (float) Db::value("SELECT COALESCE(SUM(cantidad_recibida), 0) FROM compras_detalle WHERE compra_id = ?", [$compraId]) > 0) {
+            throw new \RuntimeException('Solo se puede editar una orden pendiente que todavía no tiene nada recibido.');
+        }
+        $items = $data['items'] ?? [];
+        if (empty($items)) {
+            throw new \RuntimeException('Agrega al menos un producto.');
+        }
+
+        $ctx['sucursal_id'] = (int) $compra['sucursal_id']; // la orden sigue en su tienda
+        $depositoPrincipal  = (int) ($items[0]['deposito_id'] ?? 0) ?: (int) $compra['deposito_id'];
+        $proveedor          = self::facturaProveedor($data);
+        $factura            = self::etiqueta((string) $compra['numero_factura'], $proveedor); // el número de la compra no cambia
+        $calculado          = round(array_sum(array_map(fn ($i) => round((float) $i['cantidad'] * (float) $i['costo'], 2), $items)), 2);
+
+        Db::update('compras', [
+            'proveedor_id'             => !empty($data['proveedor_id']) ? (int) $data['proveedor_id'] : null,
+            'deposito_id'              => $depositoPrincipal,
+            'numero_factura_proveedor' => $proveedor !== '' ? $proveedor : null,
+            'monto_subtotal'           => isset($data['subtotal']) ? (float) $data['subtotal'] : $calculado,
+            'monto_itbms'              => (float) ($data['itbms'] ?? 0),
+            'monto_total'              => isset($data['total']) ? (float) $data['total'] : $calculado,
+            'fecha_compra'             => $data['fecha_compra'] ?? $compra['fecha_compra'],
+            'notas'                    => $data['notas'] ?? '',
+        ], ['compra_id' => $compraId]);
+
+        // El reparto a otras tiendas (pedido consolidado) se conserva por producto
+        $repartos = [];
+        foreach (Db::all("SELECT producto_id, reparto FROM compras_detalle WHERE compra_id = ? AND reparto IS NOT NULL", [$compraId]) as $r) {
+            $repartos[(int) $r['producto_id']] = $r['reparto'];
+        }
+
+        Db::query("DELETE FROM compras_detalle WHERE compra_id = ?", [$compraId]);
+        self::guardarLineas($compraId, $items, $depositoPrincipal, $ctx, true, $factura);
+
+        foreach ($repartos as $productoId => $reparto) {
+            Db::query("UPDATE compras_detalle SET reparto = ? WHERE compra_id = ? AND producto_id = ?", [$reparto, $compraId, $productoId]);
+        }
+    }
+
+    /** Inserta las líneas de una compra (y la recibe si no es pendiente). */
+    /**
+     * Anula una orden de compra pendiente que no tiene nada recibido (duplicada, error, el proveedor no
+     * entregó…): queda "cancelada" con el motivo en las notas. No toca inventario (no entró nada).
+     * Una compra ya recibida no se anula aquí: habría que sacar del inventario lo que entró.
+     */
+    public static function anularPendiente(int $compraId, string $motivo, array $ctx): array
+    {
+        $c = Db::row("SELECT * FROM compras WHERE compra_id = ? AND empresa_id = ? FOR UPDATE", [$compraId, $ctx['empresa_id']]);
+        if (!$c) throw new \RuntimeException('Compra no encontrada.');
+        if ($c['estado'] === 'cancelada') throw new \RuntimeException('La compra ya está anulada.');
+        $recibido = (float) Db::value("SELECT COALESCE(SUM(cantidad_recibida), 0) FROM compras_detalle WHERE compra_id = ?", [$compraId]);
+        if ($c['estado'] !== 'pendiente' || $recibido > 0) {
+            throw new \RuntimeException('Solo se puede anular una compra pendiente sin nada recibido. Esta ya tiene mercancía en el inventario.');
+        }
+        $motivo = trim($motivo) !== '' ? mb_substr(trim($motivo), 0, 200) : 'Sin motivo';
+        $nota   = 'ANULADA ' . date('d/m/Y H:i') . ' por ' . (Auth::user()['username'] ?? ('usuario #' . Auth::id())) . ': ' . $motivo;
+        Db::update('compras', [
+            'estado' => 'cancelada',
+            'notas'  => trim(($c['notas'] ? $c['notas'] . "\n" : '') . $nota),
+        ], ['compra_id' => $compraId]);
+        return ['numero' => (string) $c['numero_factura'], 'motivo' => $motivo];
+    }
+
+    /**
+     * Nº de factura del proveedor que escribió el usuario (campo numero_factura_proveedor; los
+     * formularios y la API anteriores lo mandan como numero_factura). '' = el proveedor no dio factura.
+     */
+    private static function facturaProveedor(array $data): string
+    {
+        $v = $data['numero_factura_proveedor'] ?? ($data['numero_factura'] ?? '');
+        return mb_substr(trim((string) $v), 0, 100);
+    }
+
+    /** Texto para el kardex: "COMP-S-2026-000012 (fact. prov. 0002)". */
+    public static function etiqueta(string $numero, ?string $proveedor): string
+    {
+        $proveedor = trim((string) $proveedor);
+        return $numero . ($proveedor !== '' && $proveedor !== $numero ? " (fact. prov. {$proveedor})" : '');
+    }
+
+    private static function guardarLineas(int $compraId, array $items, int $depositoPrincipal, array $ctx, bool $esPendiente, string $factura): void
+    {
+        foreach ($items as $item) {
+            $productoId = (int) $item['producto_id'];
+            $cantidad   = (float) $item['cantidad'];
+            $costo      = (float) $item['costo'];
+            $depositoId = (int) ($item['deposito_id'] ?? 0) ?: $depositoPrincipal;
+            $unidadId   = !empty($item['unidad_id']) ? (int) $item['unidad_id'] : null;
+            // El stock comprado entra solo en depósitos de la sucursal de la compra
+            SucursalService::exigirDepositoDeSucursal($depositoId, (int) $ctx['sucursal_id']);
+
+            if ($cantidad <= 0) {
+                throw new \RuntimeException('Las cantidades deben ser mayores que cero.');
+            }
+
+            $factor = max(1.0, (float) ($item['factor'] ?? 1));
+            if ($unidadId) {
+                $f = Db::value("SELECT factor_conversion FROM productos_unidades WHERE unidad_id = ? AND producto_id = ?", [$unidadId, $productoId]);
+                if ($f !== null) $factor = (float) $f;
+            }
+
+            $cantidadBase = $cantidad * $factor;
+            $costoBase    = $factor > 0 ? $costo / $factor : $costo;
+            $numeroLote   = !empty($item['numero_lote']) ? trim($item['numero_lote']) : null;
+            $vence        = !empty($item['fecha_vencimiento']) ? $item['fecha_vencimiento'] : null;
+
+            Db::insert('compras_detalle', [
+                'compra_id'         => $compraId,
+                'producto_id'       => $productoId,
+                'cantidad'          => $cantidadBase,
+                'cantidad_recibida' => $esPendiente ? 0 : $cantidadBase,
+                'costo'             => $costoBase,
+                // Cómo se escribió la línea (Caja de 6…): solo para volver a mostrarla igual al editar
+                'presentacion'        => ($pf = (float) ($item['pres_factor'] ?? 1)) > 1 ? mb_substr(trim((string) ($item['pres_nombre'] ?? '')), 0, 50) ?: null : null,
+                'factor_presentacion' => $pf > 1 ? round($pf, 2) : 1,
+                'itbms'             => (float) ($item['itbms'] ?? 0),
+                'total_linea'       => $cantidad * $costo,
+                'numero_lote'       => $numeroLote,
+                'fecha_vencimiento' => $vence,
+                'fecha_fabricacion' => !empty($item['fecha_fabricacion']) ? $item['fecha_fabricacion'] : null,
+            ]);
+
+            // Precios de venta A/B/C si vienen en el ítem: solo los de la tienda que compra
+            foreach (['a' => 'precio_a', 'b' => 'precio_b', 'c' => 'precio_c'] as $tipo => $campo) {
+                $precio = (float) ($item[$campo] ?? 0);
+                if ($precio > 0) {
+                    PrecioTienda::fijar($productoId, $tipo, $precio, (int) $ctx['sucursal_id']);
+                }
+            }
+            // Precio de venta de la presentación con que se compró (bulto, caja…), solo en la tienda que compra
+            $presUnidad = (int) ($item['pres_unidad_id'] ?? 0);
+            $presPrecio = (float) ($item['pres_precio'] ?? 0);
+            if ($presUnidad > 0 && $presPrecio > 0
+                && Db::value("SELECT COUNT(*) FROM productos_unidades WHERE unidad_id = ? AND producto_id = ?", [$presUnidad, $productoId])) {
+                PrecioTienda::fijarUnidad($presUnidad, (int) $ctx['sucursal_id'], $presPrecio);
+            }
+
+            if (!$esPendiente) {
+                self::recibirLinea($productoId, $depositoId, $cantidadBase, $costoBase, $compraId, $factura, $numeroLote, $vence);
+            }
+        }
+    }
+
+    /**
+     * Lo que falta por recibir de cada línea (detalle_id → cantidad). Quien no crea compras
+     * (encargado) solo confirma la recepción: recibe exactamente lo enviado, sin cambiar cantidades.
+     */
+    public static function todoPendiente(int $compraId): array
+    {
+        $r = [];
+        foreach (Db::all("SELECT detalle_id, cantidad - cantidad_recibida AS pend FROM compras_detalle WHERE compra_id = ? AND cantidad > cantidad_recibida", [$compraId]) as $l) {
+            $r[(int) $l['detalle_id']] = (float) $l['pend'];
+        }
+        return $r;
+    }
+
+    /**
+     * Recibe líneas pendientes de una compra. $recibidas: detalle_id → cantidad (tope: lo pendiente).
+     * Actualiza el estado de la compra. El llamador abre y cierra la transacción.
+     *
+     * @return string nuevo estado ('recibida' | 'parcialmente_recibida')
+     */
+    public static function recibirPendientes(int $compraId, array $compra, array $recibidas, int $depositoId): string
+    {
+        SucursalService::exigirDepositoDeSucursal($depositoId, (int) $compra['sucursal_id']);
+        $recibidoAlgo = false;
+        foreach (Db::all("SELECT * FROM compras_detalle WHERE compra_id = ? AND cantidad > cantidad_recibida", [$compraId]) as $linea) {
+            $detalleId = (int) $linea['detalle_id'];
+            $pendiente = (float) $linea['cantidad'] - (float) $linea['cantidad_recibida'];
+            $cantidad  = isset($recibidas[$detalleId]) ? min((float) $recibidas[$detalleId], $pendiente) : 0.0;
+            if ($cantidad <= 0) continue;
+
+            self::recibirLinea((int) $linea['producto_id'], $depositoId, $cantidad, (float) $linea['costo'], $compraId,
+                self::etiqueta((string) ($compra['numero_factura'] ?? ''), $compra['numero_factura_proveedor'] ?? null),
+                $linea['numero_lote'] ?: null, $linea['fecha_vencimiento'] ?: null);
+            Db::query("UPDATE compras_detalle SET cantidad_recibida = cantidad_recibida + ? WHERE detalle_id = ?", [$cantidad, $detalleId]);
+            $recibidoAlgo = true;
+        }
+        if (!$recibidoAlgo) {
+            throw new \RuntimeException('Indica al menos una cantidad recibida.');
+        }
+
+        $sinRecibir  = (int) Db::value("SELECT COUNT(*) FROM compras_detalle WHERE compra_id = ? AND cantidad > cantidad_recibida", [$compraId]);
+        $nuevoEstado = $sinRecibir === 0 ? 'recibida' : 'parcialmente_recibida';
+        Db::query(
+            "UPDATE compras SET estado = ?" . ($nuevoEstado === 'recibida' ? ', fecha_recepcion = NOW()' : '') . " WHERE compra_id = ?",
+            [$nuevoEstado, $compraId]
+        );
+        return $nuevoEstado;
+    }
+
+    /** Entrada al inventario con costo promedio ponderado (y lote, si viene). */
+    public static function recibirLinea(int $productoId, int $depositoId, float $cantidadBase, float $costoUnit, int $compraId, string $factura, ?string $numeroLote, ?string $vence): void
+    {
+        $inv = Db::row("SELECT inventario_id, existencia, costo_promedio FROM inventario WHERE producto_id = ? AND deposito_id = ? LIMIT 1", [$productoId, $depositoId]);
+
+        if (!$inv) {
+            $inventarioId = Db::insert('inventario', [
+                'producto_id' => $productoId, 'deposito_id' => $depositoId, 'existencia' => 0,
+                'ultimo_costo' => $costoUnit, 'costo_promedio' => $costoUnit, 'fecha_actualizacion_costo' => date('Y-m-d H:i:s'),
+            ]);
+            $oldQty = 0.0;
+            $oldAvg = $costoUnit;
+        } else {
+            $inventarioId = (int) $inv['inventario_id'];
+            $oldQty       = (float) $inv['existencia'];
+            $oldAvg       = (float) $inv['costo_promedio'];
+        }
+
+        $newQty = $oldQty + $cantidadBase;
+        $newAvg = ($oldQty <= 0 || $newQty <= 0) ? $costoUnit : (($oldQty * $oldAvg) + ($cantidadBase * $costoUnit)) / $newQty;
+
+        InventarioService::registrar($inventarioId, 'entrada', $cantidadBase, $compraId, 'compras', "Compra {$factura}");
+
+        Db::query("UPDATE inventario SET ultimo_costo = ?, costo_promedio = ?, fecha_actualizacion_costo = NOW() WHERE inventario_id = ?", [$costoUnit, $newAvg, $inventarioId]);
+        Db::query("UPDATE productos SET costo = ? WHERE producto_id = ?", [$costoUnit, $productoId]);
+
+        if (!$numeroLote) {
+            return;
+        }
+
+        $lote = Db::row("SELECT lote_id, cantidad_actual FROM lotes WHERE producto_id = ? AND deposito_id = ? AND numero_lote = ? LIMIT 1", [$productoId, $depositoId, $numeroLote]);
+        if ($lote) {
+            $saldo = (float) $lote['cantidad_actual'] + $cantidadBase;
+            Db::query("UPDATE lotes SET cantidad_actual = ?, estado = 'activo' WHERE lote_id = ?", [$saldo, $lote['lote_id']]);
+            Db::query(
+                "INSERT INTO lote_movimientos (lote_id, tipo, cantidad, saldo_anterior, saldo_nuevo, referencia_id, referencia_tipo) VALUES (?, 'entrada', ?, ?, ?, ?, 'compras')",
+                [$lote['lote_id'], $cantidadBase, $lote['cantidad_actual'], $saldo, $compraId]
+            );
+        } else {
+            $loteId = Db::insert('lotes', [
+                'producto_id' => $productoId, 'deposito_id' => $depositoId, 'numero_lote' => $numeroLote,
+                'fecha_vencimiento' => $vence, 'cantidad_inicial' => $cantidadBase, 'cantidad_actual' => $cantidadBase, 'estado' => 'activo',
+            ]);
+            Db::query(
+                "INSERT INTO lote_movimientos (lote_id, tipo, cantidad, saldo_anterior, saldo_nuevo, referencia_id, referencia_tipo) VALUES (?, 'entrada', ?, 0, ?, ?, 'compras')",
+                [$loteId, $cantidadBase, $cantidadBase, $compraId]
+            );
+        }
+    }
+}

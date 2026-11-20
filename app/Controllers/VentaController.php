@@ -1,0 +1,903 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use App\Libraries\AuditService;
+use App\Libraries\Auth;
+use App\Libraries\CajaService;
+use App\Libraries\Db;
+use App\Libraries\InventarioService;
+use App\Libraries\NumeracionService;
+use App\Libraries\VentaService;
+
+class VentaController extends BaseController
+{
+    private const POR_PAGINA = 25;
+
+    public function index(): string
+    {
+        $page        = max(1, (int) ($this->request->getGet('page') ?? 1));
+        $buscar      = (string) ($this->request->getGet('buscar') ?? '');
+        $estado      = (string) ($this->request->getGet('estado') ?? '');
+        $fechaDesde  = (string) ($this->request->getGet('fecha_inicio') ?? '');
+        $fechaHasta  = (string) ($this->request->getGet('fecha_fin') ?? '');
+        $clienteId   = (string) ($this->request->getGet('cliente') ?? '');
+        $origen      = (string) ($this->request->getGet('origen') ?? '');
+        if (!in_array($origen, ['pos', 'normal'], true)) $origen = '';
+        $sucursalId  = $this->sucursalId();
+
+        $where  = 'v.sucursal_id = ?';
+        $params = [$sucursalId];
+
+        if ($buscar !== '') {
+            $where .= ' AND v.numero_factura LIKE ?';
+            $params[] = "%{$buscar}%";
+        }
+        if ($estado !== '') {
+            $where .= ' AND v.estado = ?';
+            $params[] = $estado;
+        }
+        if ($fechaDesde !== '') {
+            $where .= ' AND DATE(v.fecha) >= ?';
+            $params[] = $fechaDesde;
+        }
+        if ($fechaHasta !== '') {
+            $where .= ' AND DATE(v.fecha) <= ?';
+            $params[] = $fechaHasta;
+        }
+        if ($clienteId !== '') {
+            $where .= ' AND v.cliente_id = ?';
+            $params[] = (int) $clienteId;
+        }
+
+        // Filtros sin el origen: los conteos de las pestañas (Todas / POS / normales) los respetan
+        $whereBase  = $where;
+        $paramsBase = $params;
+        if ($origen !== '') {
+            $where .= ' AND v.origen = ?';
+            $params[] = $origen;
+        }
+
+        $offset = ($page - 1) * self::POR_PAGINA;
+        $total  = (int) Db::value("SELECT COUNT(*) FROM ventas v LEFT JOIN clientes c ON v.cliente_id = c.cliente_id WHERE {$where}", $params);
+
+        $ventas = Db::all(
+            "SELECT v.*, c.nombre AS cliente_nombre, u.username AS vendedor_nombre,
+                    (SELECT GROUP_CONCAT(DISTINCT forma_pago ORDER BY monto DESC SEPARATOR ',') FROM ventas_pagos WHERE venta_id = v.venta_id) AS formas_pago
+             FROM ventas v
+             LEFT JOIN clientes c ON v.cliente_id = c.cliente_id
+             LEFT JOIN users u ON v.vendedor_id = u.id
+             WHERE {$where}
+             ORDER BY v.venta_id DESC
+             LIMIT " . self::POR_PAGINA . " OFFSET {$offset}",
+            $params
+        );
+
+        $metricas = Db::row(
+            "SELECT COUNT(*) AS cantidad_ventas, COALESCE(SUM(total), 0) AS total_ventas
+             FROM ventas v LEFT JOIN clientes c ON v.cliente_id = c.cliente_id
+             WHERE {$where} AND v.estado != 'anulada'",
+            $params
+        );
+
+        // Ventas de hoy dentro de la selección actual (pestaña, cliente, búsqueda, estado; la fecha es siempre hoy)
+        $whereHoy  = $where;
+        $paramsHoy = $params;
+        if ($fechaDesde !== '') { $whereHoy = str_replace(' AND DATE(v.fecha) >= ?', '', $whereHoy); unset($paramsHoy[array_search($fechaDesde, $paramsHoy, true)]); }
+        if ($fechaHasta !== '') { $whereHoy = str_replace(' AND DATE(v.fecha) <= ?', '', $whereHoy); unset($paramsHoy[array_search($fechaHasta, $paramsHoy, true)]); }
+        $ventasHoy = (int) Db::value(
+            "SELECT COUNT(*) FROM ventas v LEFT JOIN clientes c ON v.cliente_id = c.cliente_id
+             WHERE {$whereHoy} AND DATE(v.fecha) = CURDATE() AND v.estado != 'anulada'",
+            array_values($paramsHoy)
+        );
+
+        $cantidad = (int) $metricas['cantidad_ventas'];
+        $totalV   = (float) $metricas['total_ventas'];
+
+        // Conteo por pestaña (POS / normales), sin contar anuladas
+        $conteoOrigen = ['pos' => 0, 'normal' => 0];
+        foreach (Db::all(
+            "SELECT v.origen, COUNT(*) AS n FROM ventas v LEFT JOIN clientes c ON v.cliente_id = c.cliente_id
+             WHERE {$whereBase} AND v.estado != 'anulada' GROUP BY v.origen",
+            $paramsBase
+        ) as $fila) {
+            $conteoOrigen[$fila['origen']] = (int) $fila['n'];
+        }
+
+        return $this->render('ventas.lista', [
+            'origen_actual'       => $origen,
+            'conteo_origen'       => $conteoOrigen,
+            'page_title'          => 'Ventas',
+            'page_subtitle'       => 'Gestión de ventas y cotizaciones',
+            'ventas'              => $ventas,
+            'clientes'            => $this->clientesActivos(),
+            'buscar'              => $buscar,
+            'estado_actual'       => $estado,
+            'fecha_inicio_actual' => $fechaDesde,
+            'fecha_fin_actual'    => $fechaHasta,
+            'cliente_actual'      => $clienteId,
+            'total_ventas'        => $totalV,
+            'cantidad_ventas'     => $cantidad,
+            'promedio_venta'      => $cantidad > 0 ? $totalV / $cantidad : 0,
+            'ventas_hoy_count'    => $ventasHoy,
+            'pagination'          => paginacion($total, $page, self::POR_PAGINA),
+        ]);
+    }
+
+    /** POST /ventas/venta/{id}/imprimir — manda el ticket a la impresora térmica de red (BIXOLON). */
+    public function imprimirTicket(int $id)
+    {
+        if (!\App\Libraries\ImpresoraRed::configurada()) {
+            return $this->json(['error' => 'No hay impresora de red configurada.'], 422);
+        }
+        ob_start(); // cualquier texto sobrante (avisos de PHP) no debe mezclarse con el JSON
+        try {
+            $bytes = \App\Libraries\ImpresoraRed::imprimirVenta($id, $this->sucursalId());
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            log_message('error', 'Impresión de ticket venta {id}: {msg}', ['id' => $id, 'msg' => $e->getMessage()]);
+            return $this->json(['error' => $e->getMessage()], 422);
+        }
+        $sobrante = (string) ob_get_clean();
+        if ($sobrante !== '') {
+            log_message('warning', 'Impresión de ticket venta {id}: salida inesperada: {txt}', ['id' => $id, 'txt' => substr(strip_tags($sobrante), 0, 300)]);
+        }
+        log_message('info', 'Ticket de la venta {id} enviado a la impresora: {bytes} bytes (usuario {u}).', ['id' => $id, 'bytes' => $bytes, 'u' => (string) \App\Libraries\Auth::id()]);
+        return $this->json(['ok' => true, 'mensaje' => 'Ticket enviado a la impresora.', 'bytes' => $bytes]);
+    }
+
+    /** POST /ventas/venta/{id}/imprimir-factura — imprime la factura en la Ricoh por CUPS (sin diálogo del navegador). */
+    public function imprimirFactura(int $id)
+    {
+        if (!\App\Libraries\ImpresionCups::configurada()) {
+            return $this->json(['error' => 'No hay impresora CUPS configurada.'], 422);
+        }
+        ob_start();
+        try {
+            $trabajo = \App\Libraries\ImpresionCups::imprimirFactura($id, $this->sucursalId());
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            log_message('error', 'Impresión CUPS de la venta {id}: {msg}', ['id' => $id, 'msg' => $e->getMessage()]);
+            return $this->json(['error' => $e->getMessage()], 422);
+        }
+        ob_end_clean();
+        log_message('info', 'Factura de la venta {id} enviada a CUPS: trabajo {t} (usuario {u}).', ['id' => $id, 't' => $trabajo, 'u' => (string) \App\Libraries\Auth::id()]);
+        return $this->json(['ok' => true, 'mensaje' => 'Factura enviada a la impresora.', 'trabajo' => $trabajo]);
+    }
+
+    /** POST /ventas/imprimir-ultima — imprime por CUPS la última factura (no anulada) de este usuario en la tienda activa. */
+    public function imprimirUltimaFactura()
+    {
+        $id = (int) Db::value(
+            "SELECT venta_id FROM ventas WHERE sucursal_id = ? AND vendedor_id = ? AND estado != 'anulada' ORDER BY venta_id DESC LIMIT 1",
+            [$this->sucursalId(), (int) \App\Libraries\Auth::id()]
+        );
+        if ($id <= 0) {
+            return $this->json(['error' => 'Todavía no hay ventas tuyas para imprimir.'], 404);
+        }
+        return $this->imprimirFactura($id);
+    }
+
+    /** GET /ventas/venta/{id}/factura — factura en hoja con el formato del sistema anterior (ver / imprimir). */
+    public function factura(int $id)
+    {
+        $datos = \App\Libraries\FacturaVenta::datos($id, $this->sucursalId());
+        if (!$datos) {
+            $this->error('Venta no encontrada.');
+            return redirect()->to('/ventas');
+        }
+        return view('ventas/factura', $datos + ['modo' => 'web']);
+    }
+
+    /** GET /ventas/venta/{id}/factura/pdf — la misma factura en PDF. */
+    public function facturaPdf(int $id)
+    {
+        $datos = \App\Libraries\FacturaVenta::datos($id, $this->sucursalId());
+        if (!$datos) {
+            $this->error('Venta no encontrada.');
+            return redirect()->to('/ventas');
+        }
+        return $this->response
+            ->setHeader('Content-Type', 'application/pdf')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . \App\Libraries\FacturaVenta::nombreArchivo($datos) . '"')
+            ->setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->setBody(\App\Libraries\FacturaVenta::pdf($datos));
+    }
+
+    /** Formulario de venta tradicional (también precarga una cotización con ?cotizacion_id=). */
+    public function crear(): string
+    {
+        $cotizacionId = (int) ($this->request->getGet('cotizacion_id') ?? 0);
+        $preload      = null;
+
+        if ($cotizacionId > 0) {
+            $cot = Db::row(
+                "SELECT co.*, c.nombre AS cliente_nombre, c.ruc AS cliente_ruc,
+                        c.telefono AS cliente_telefono, c.direccion AS cliente_direccion
+                 FROM cotizaciones co
+                 LEFT JOIN clientes c ON co.cliente_id = c.cliente_id
+                 WHERE co.cotizacion_id = ? AND co.sucursal_id = ?",
+                [$cotizacionId, $this->sucursalId()]
+            );
+
+            if ($cot) {
+                $detalles = Db::all(
+                    "SELECT d.*, p.nombre AS producto_nombre, p.codigo AS producto_codigo, p.itbms AS p_itbms
+                     FROM cotizaciones_detalle d
+                     JOIN productos p ON d.producto_id = p.producto_id
+                     WHERE d.cotizacion_id = ?",
+                    [$cotizacionId]
+                );
+
+                $preload = [
+                    'cotizacion_id'     => (int) $cot['cotizacion_id'],
+                    'cliente_id'        => $cot['cliente_id'],
+                    'cliente_nombre'    => $cot['cliente_nombre'] ?? 'Consumidor Final',
+                    'cliente_ruc'       => $cot['cliente_ruc'] ?? 'N/A',
+                    'cliente_telefono'  => $cot['cliente_telefono'] ?? 'N/A',
+                    'cliente_direccion' => $cot['cliente_direccion'] ?? 'Consumidor Final',
+                    'notas'             => $cot['notas'] ?? '',
+                    'items'             => array_map(fn ($d) => [
+                        'id'            => (int) $d['producto_id'],
+                        'codigo'        => $d['producto_codigo'],
+                        'nombre'        => $d['producto_nombre'],
+                        'cantidad'      => (float) $d['cantidad'],
+                        'precio'        => (float) $d['precio'],
+                        'descuento'     => (float) $d['descuento'],
+                        'applica_itbms' => $d['p_itbms'] == 1,
+                    ], $detalles),
+                ];
+            }
+        }
+
+        return $this->render('ventas.crear', [
+            'page_title'           => 'Nueva Venta',
+            'page_subtitle'        => 'Crear factura',
+            'tipo_documento'       => 'venta',
+            'clientes'             => $this->clientesActivos(),
+            'depositos'            => $this->depositosActivos(),
+            'deposito_defecto'     => $this->depositoNuevaVenta(),
+            'siguiente_factura'    => NumeracionService::siguiente('factura', $this->empresaId(), $this->sucursalId()),
+            'siguiente_cotizacion' => NumeracionService::siguiente('cotizacion', $this->empresaId(), $this->sucursalId()),
+            'hoy'                  => date('Y-m-d'),
+            'fecha_validez'        => date('Y-m-d', strtotime('+30 days')),
+            'cotizacion_preload'   => $preload,
+        ]);
+    }
+
+    public function puntoVenta(): string
+    {
+        $empresa = Db::row(
+            "SELECT pos_desc_cajero, pos_desc_gerente FROM companies WHERE empresa_id = ? LIMIT 1",
+            [$this->empresaId()]
+        );
+
+        $rol          = Auth::rol();
+        $maxDescuento = in_array($rol, ['superadmin', 'gerente', 'administrador'], true)
+            ? (int) ($empresa['pos_desc_gerente'] ?? 50)
+            : (int) ($empresa['pos_desc_cajero'] ?? 10);
+
+        return $this->render('ventas.pos', [
+            'page_title'        => 'Punto de Venta',
+            'page_subtitle'     => 'POS',
+            'depositos'         => $this->depositosActivos(),
+            'clientes'          => $this->clientesActivos(),
+            'max_descuento_pct' => $maxDescuento,
+            'rol_usuario'       => $rol,
+        ]);
+    }
+
+    /**
+     * Descuento máximo (% del subtotal) que puede dar el usuario: el de gerente de la empresa con
+     * descuentos.aplicar, si no el de cajero (companies.pos_desc_gerente / pos_desc_cajero).
+     */
+    public static function maxDescuentoPct(int $empresaId): int
+    {
+        $empresa = Db::row("SELECT pos_desc_cajero, pos_desc_gerente FROM companies WHERE empresa_id = ? LIMIT 1", [$empresaId]);
+        return Auth::can('descuentos.aplicar')
+            ? (int) ($empresa['pos_desc_gerente'] ?? 50)
+            : (int) ($empresa['pos_desc_cajero'] ?? 10);
+    }
+
+    /** POST JSON — usado por el POS web, el formulario de venta y la PWA móvil. */
+    public function procesar()
+    {
+        $data = $this->jsonInput();
+
+        if (($data['tipo'] ?? 'venta') !== 'venta') {
+            return $this->json(['error' => 'Use /ventas/cotizaciones/guardar para cotizaciones'], 422);
+        }
+
+        // Cada línea puede traer su depósito (Nueva venta: Depósito 2); debe ser uno que el usuario pueda usar
+        foreach ((array) ($data['items'] ?? []) as $it) {
+            $dep = (int) ($it['deposito_id'] ?? 0);
+            if ($dep > 0 && !\App\Libraries\SucursalService::puedeUsarDeposito($dep, (int) $this->sucursalId())) {
+                return $this->json(['error' => 'No tienes permiso para vender desde ese depósito.'], 403);
+            }
+        }
+
+        // Los descuentos (por línea + al total) no pueden pasar del máximo del usuario
+        $bruto = 0.0;
+        $desc  = max(0, (float) ($data['descuento'] ?? 0));
+        foreach ((array) ($data['items'] ?? []) as $it) {
+            $bruto += (float) ($it['cantidad'] ?? 0) * (float) ($it['precio'] ?? 0);
+            $desc  += max(0, (float) ($it['descuento'] ?? 0));
+        }
+        if ($desc > 0.005) {
+            $max = self::maxDescuentoPct((int) $this->empresaId());
+            if ($bruto <= 0 || $desc * 100 / $bruto > $max + 0.01) {
+                return $this->json(['error' => "El descuento pasa del máximo permitido ({$max}%)."], 422);
+            }
+        }
+
+        // Venta de un día anterior (crédito anotado a mano que no se cargó ese día): va a la caja de ese día
+        $fecha = trim((string) ($data['fecha'] ?? ''));
+        $anterior = null;
+        if ($fecha !== '' && $fecha !== date('Y-m-d')) {
+            $anterior = $this->validarFechaAnterior($fecha, $data);
+            if (is_string($anterior)) {
+                return $this->json(['error' => $anterior], 422);
+            }
+        }
+
+        // Venta de hoy toda a crédito sin caja propia abierta (p. ej. el admin en "Nueva venta"):
+        // no entra dinero, así que no hace falta abrir caja. Se anota en la caja abierta de la tienda
+        // (si hay) para que salga en el crédito del día; no cambia su efectivo.
+        $creditoSinCaja = false;
+        $cajaTienda     = null;
+        if ($anterior === null && self::soloCredito($data) && !CajaService::abiertaId($this->sucursalId())) {
+            $creditoSinCaja = true;
+            $cajaTienda = Db::value(
+                "SELECT caja_id FROM cajas WHERE sucursal_id = ? AND estado = 'abierta' ORDER BY caja_id DESC LIMIT 1",
+                [$this->sucursalId()]
+            );
+        }
+
+        try {
+            Db::begin();
+            $resultado = VentaService::procesar($data, [
+                'empresa_id'  => $this->empresaId(),
+                'sucursal_id' => $this->sucursalId(),
+                'deposito_id' => $this->depositoId(),
+                'ip'          => $this->request->getIPAddress(),
+                // Con fecha anterior la caja es la de ese día (se fija abajo), no la abierta del usuario
+                'omitir_caja' => $anterior !== null || $creditoSinCaja,
+            ]);
+            if ($creditoSinCaja && $cajaTienda) {
+                Db::update('ventas', ['caja_id' => (int) $cajaTienda], ['venta_id' => $resultado['venta_id']]);
+            }
+            if ($anterior !== null) {
+                Db::update('ventas', ['fecha' => $anterior['hora'], 'caja_id' => $anterior['caja_id']], ['venta_id' => $resultado['venta_id']]);
+                Db::query(
+                    "UPDATE inventario_movimientos SET fecha_registro = ? WHERE referencia_tipo = 'ventas' AND referencia_id = ?",
+                    [$anterior['hora'], $resultado['venta_id']]
+                );
+                if ($anterior['caja_id'] && $anterior['cerrada']) {
+                    CajaService::refrescarCierre((int) $anterior['caja_id']);
+                }
+            }
+            Db::commit();
+        } catch (\Throwable $e) {
+            Db::rollback();
+            log_message('error', 'Venta: ' . $e->getMessage());
+            return $this->json(['error' => $e instanceof \RuntimeException ? $e->getMessage() : 'No se pudo registrar la venta.'], 500);
+        }
+
+        AuditService::log(
+            'ventas.crear',
+            "Venta #{$resultado['venta_id']} creada por $" . number_format($resultado['total'], 2)
+                . ($anterior ? " con fecha {$fecha}" . ($anterior['caja_id'] ? " (caja #{$anterior['caja_id']})" : ' (sin caja ese día)') : ''),
+            $resultado['venta_id'], 'venta', ['total' => $resultado['total'], 'fecha' => $anterior ? $fecha : null], $this->empresaId()
+        );
+
+        return $this->json($resultado);
+    }
+
+    /**
+     * Valida una venta con fecha anterior y busca la caja de ese día en la sucursal activa.
+     * Solo a crédito: una caja cerrada ya contó su efectivo, el crédito solo se informa.
+     *
+     * @return array{caja_id: ?int, cerrada: bool, hora: string}|string mensaje de error
+     */
+    /** ¿Todos los pagos de la venta son a CREDITO? */
+    private static function soloCredito(array $data): bool
+    {
+        $formas = !empty($data['pagos']) && is_array($data['pagos'])
+            ? array_map(fn ($p) => strtoupper(trim((string) ($p['forma_pago'] ?? ''))), $data['pagos'])
+            : [strtoupper(trim((string) ($data['forma_pago'] ?? '')))];
+        return $formas !== [] && !array_diff($formas, ['CREDITO']);
+    }
+
+    private function validarFechaAnterior(string $fecha, array $data): array|string
+    {
+        if (!Auth::can('ventas.fecha_anterior')) {
+            return 'No tienes permiso para registrar ventas de días anteriores.';
+        }
+        $d = \DateTime::createFromFormat('!Y-m-d', $fecha);
+        if (!$d || $d->format('Y-m-d') !== $fecha) {
+            return 'Fecha no válida.';
+        }
+        if ($fecha > date('Y-m-d')) {
+            return 'La fecha no puede ser futura.';
+        }
+        if ($fecha < date('Y-m-d', strtotime('-365 days'))) {
+            return 'La fecha es de hace más de un año.';
+        }
+        if (!self::soloCredito($data)) {
+            return 'Una venta de un día anterior solo puede ser a crédito (el efectivo de esa caja ya se contó).';
+        }
+        if (empty($data['cliente_id'])) {
+            return 'Elige el cliente del crédito.';
+        }
+
+        // Caja de esa tienda que estaba abierta ese día (preferir la abierta ese mismo día y ya cerrada)
+        $caja = Db::row(
+            "SELECT caja_id, estado, abierta_en, cerrada_en FROM cajas
+             WHERE sucursal_id = ? AND DATE(abierta_en) <= ? AND (cerrada_en IS NULL OR DATE(cerrada_en) >= ?)
+             ORDER BY DATE(abierta_en) = ? DESC, estado = 'cerrada' DESC, caja_id DESC LIMIT 1",
+            [$this->sucursalId(), $fecha, $fecha, $fecha]
+        );
+
+        // Hora: justo antes del cierre si la caja cerró ese día; si no, mediodía
+        $hora = "{$fecha} 12:00:00";
+        if ($caja && $caja['cerrada_en'] && substr((string) $caja['cerrada_en'], 0, 10) === $fecha) {
+            $hora = date('Y-m-d H:i:s', strtotime((string) $caja['cerrada_en']) - 60);
+        }
+        if ($caja && $hora < (string) $caja['abierta_en']) {
+            $hora = (string) $caja['abierta_en'];
+        }
+
+        return [
+            'caja_id' => $caja ? (int) $caja['caja_id'] : null,
+            'cerrada' => $caja && $caja['estado'] === 'cerrada',
+            'hora'    => $hora,
+        ];
+    }
+
+    public function detalle(int $ventaId)
+    {
+        $venta = Db::row(
+            "SELECT v.*, c.nombre AS cliente_nombre, c.ruc AS cliente_ruc, u.username AS vendedor_nombre,
+                    b.nombre AS sucursal_nombre, b.direccion AS sucursal_direccion, b.telefono AS sucursal_telefono,
+                    b.mapa_url, b.latitud, b.longitud
+             FROM ventas v
+             LEFT JOIN clientes c ON v.cliente_id = c.cliente_id
+             LEFT JOIN users u ON v.vendedor_id = u.id
+             LEFT JOIN branches b ON b.sucursal_id = v.sucursal_id
+             WHERE v.venta_id = ? AND v.sucursal_id = ?",
+            [$ventaId, $this->sucursalId()]
+        );
+
+        if (!$venta) {
+            $this->error('Venta no encontrada.');
+            return redirect()->to('/ventas');
+        }
+
+        return $this->render('ventas.detalle', [
+            'page_title'    => 'Venta ' . $venta['numero_factura'],
+            'page_subtitle' => 'Detalle de la venta',
+            'venta'         => $venta,
+            'detalles'      => Db::all(
+                "SELECT d.*, p.nombre AS producto_nombre, p.codigo AS producto_codigo, dep.nombre AS deposito_nombre
+                 FROM ventas_detalle d
+                 JOIN productos p ON d.producto_id = p.producto_id
+                 LEFT JOIN depositos dep ON d.deposito_id = dep.deposito_id
+                 WHERE d.venta_id = ?",
+                [$ventaId]
+            ),
+            'pagos_venta' => Db::all("SELECT forma_pago, monto, referencia FROM ventas_pagos WHERE venta_id = ? ORDER BY pago_id", [$ventaId]),
+            // Devoluciones parciales (cada una con su nota de crédito)
+            'devoluciones' => Db::all(
+                "SELECT dv.*, n.numero AS nota, p.nombre AS producto, u.username AS usuario
+                 FROM ventas_devoluciones dv
+                 LEFT JOIN notas_credito n ON n.nota_id = dv.nota_id
+                 JOIN ventas_detalle d ON d.detalle_id = dv.detalle_id JOIN productos p ON p.producto_id = d.producto_id
+                 LEFT JOIN users u ON u.id = dv.usuario_id
+                 WHERE dv.venta_id = ? ORDER BY dv.devolucion_id",
+                [$ventaId]
+            ),
+            // Abonos (cobros) aplicados a esta factura y lo que aún falta
+            'abonos'      => Db::all(
+                "SELECT c.cobro_id, c.numero, c.fecha, c.forma_pago, c.referencia, c.notas, cv.monto, u.username AS usuario,
+                        c.comprobante, c.usuario_id, c.sucursal_id
+                 FROM cobros_ventas cv JOIN cobros c ON c.cobro_id = cv.cobro_id LEFT JOIN users u ON u.id = c.usuario_id
+                 WHERE cv.venta_id = ? ORDER BY c.fecha, c.cobro_id",
+                [$ventaId]
+            ),
+            'falta_pagar' => $this->faltaPagar($venta),
+            // Vuelto en efectivo de un pago de más por Yappy / transferencia (salida de caja de esta venta)
+            'vuelto'      => \App\Libraries\VentaService::vueltoEfectivo((string) $venta['numero_factura'], $venta['caja_id'] ? (int) $venta['caja_id'] : null),
+        ]);
+    }
+
+    /** Saldo pendiente de una factura a crédito (su CREDITO − abonos); 0 si no está pendiente. */
+    private function faltaPagar(array $venta): float
+    {
+        if ($venta['estado'] !== 'pendiente' || !$venta['cliente_id']) {
+            return 0.0;
+        }
+        foreach (\App\Libraries\CobroService::pendientes((int) $venta['cliente_id'], (int) $this->empresaId()) as $p) {
+            if ($p['venta_id'] !== null && (int) $p['venta_id'] === (int) $venta['venta_id']) {
+                return round((float) $p['pendiente'], 2);
+            }
+        }
+        return 0.0;
+    }
+
+    /**
+     * POST /ventas/venta/{id}/agregar {producto_id, cantidad, unidad_id?, forma_pago?} (JSON)
+     * Producto que se quedó fuera de una factura de hoy. Ver VentaService::agregarLinea().
+     */
+    public function agregarProducto(int $ventaId)
+    {
+        $d = $this->jsonInput();
+        try {
+            Db::begin();
+            $r = VentaService::agregarLinea($ventaId, $d, isset($d['forma_pago']) ? (string) $d['forma_pago'] : null, [
+                'empresa_id' => $this->empresaId(), 'sucursal_id' => $this->sucursalId(), 'deposito_id' => $this->depositoId(),
+            ]);
+            Db::commit();
+        } catch (\Throwable $e) {
+            Db::rollback();
+            return $this->json(['error' => $e instanceof \RuntimeException || $e instanceof \DomainException ? $e->getMessage() : 'No se pudo agregar el producto.'], 422);
+        }
+        $nombre = (string) (Db::value("SELECT nombre FROM productos WHERE producto_id = ?", [(int) ($d['producto_id'] ?? 0)]) ?? '');
+        AuditService::log('ventas.agregar_producto', "Agregado a {$r['numero_factura']}: " . (float) $d['cantidad'] . " × {$nombre} (+$" . number_format($r['agregado'], 2) . ')', $ventaId, 'venta', $d, $this->empresaId());
+        return $this->json(['success' => true] + $r);
+    }
+
+    /**
+     * POST /ventas/venta/{id}/devolver {detalle_id, cantidad, reingresa, motivo, reembolso} (JSON)
+     * Devolución parcial de un producto. Ver VentaService::devolverLinea().
+     */
+    public function devolver(int $ventaId)
+    {
+        $d = $this->jsonInput();
+        try {
+            Db::begin();
+            $r = VentaService::devolverLinea(
+                $ventaId, (int) ($d['detalle_id'] ?? 0), (float) ($d['cantidad'] ?? 0), !empty($d['reingresa']),
+                (string) ($d['motivo'] ?? ''), (string) ($d['reembolso'] ?? ''),
+                ['empresa_id' => $this->empresaId(), 'sucursal_id' => $this->sucursalId()]
+            );
+            Db::commit();
+        } catch (\Throwable $e) {
+            Db::rollback();
+            return $this->json(['error' => $e instanceof \RuntimeException ? $e->getMessage() : 'No se pudo registrar la devolución.'], 422);
+        }
+        AuditService::log('ventas.devolucion', "{$r['nota']} en {$r['numero_factura']}: {$r['descripcion']} (\$" . number_format($r['monto'], 2) . ')', $ventaId, 'venta', $d, $this->empresaId());
+        return $this->json(['success' => true] + $r);
+    }
+
+    public function anular(int $ventaId)
+    {
+        $motivoTipo = (string) ($this->request->getPost('motivo_tipo') ?? '');
+        $motivo     = $motivoTipo === 'otro'
+            ? (string) ($this->request->getPost('motivo') ?? 'Anulación de venta')
+            : ($motivoTipo !== '' ? $motivoTipo : 'Anulación de venta');
+
+        try {
+            Db::begin();
+            $numeroNota = VentaService::anular($ventaId, (int) $this->sucursalId(), (int) $this->empresaId(), $motivo);
+            Db::commit();
+        } catch (\Throwable $e) {
+            Db::rollback();
+            $this->error($e instanceof \RuntimeException ? $e->getMessage() : 'Error al anular la venta.');
+            return redirect()->to("/ventas/venta/{$ventaId}");
+        }
+
+        AuditService::log('ventas.anular', "Venta #{$ventaId} anulada — NC {$numeroNota}", $ventaId, 'venta', ['nota_credito' => $numeroNota], $this->empresaId());
+        $this->success("Venta anulada. Nota de crédito {$numeroNota} generada.");
+        return redirect()->to("/ventas/venta/{$ventaId}");
+    }
+
+    /** Marca como pagada una venta a crédito pendiente. */
+    public function registrarPago(int $ventaId)
+    {
+        $venta = Db::row("SELECT * FROM ventas WHERE venta_id = ? AND sucursal_id = ?", [$ventaId, $this->sucursalId()]);
+        if (!$venta || $venta['estado'] !== 'pendiente') {
+            $this->error('Solo se pueden pagar ventas en estado pendiente.');
+            return redirect()->to("/ventas/venta/{$ventaId}");
+        }
+
+        try {
+            if (!$venta['cliente_id']) {
+                throw new \RuntimeException('La venta no tiene cliente.');
+            }
+            // Abono parcial o total a esta factura (descontando abonos previos), con forma de pago y recibo
+            $falta = $this->faltaPagar($venta);
+            if ($falta <= 0) {
+                throw new \RuntimeException('Esta factura no tiene saldo pendiente.');
+            }
+            $montoPost = trim((string) ($this->request->getPost('monto') ?? ''));
+            $monto     = $montoPost === '' ? $falta : round((float) str_replace(',', '.', $montoPost), 2);
+            $forma     = strtoupper((string) ($this->request->getPost('forma_pago') ?? 'EFECTIVO'));
+            $notas     = trim((string) ($this->request->getPost('notas') ?? ''));
+            // Yappy / transferencia / cheque: foto del comprobante obligatoria (tarjeta: opcional)
+            $foto      = $this->request->getFile('foto');
+            $tieneFoto = $foto !== null && $foto->isValid() && !$foto->hasMoved();
+            if (\App\Libraries\Comprobantes::exigeFoto($forma) || $tieneFoto) {
+                \App\Libraries\Comprobantes::validar($foto);
+            }
+
+            Db::begin();
+            $recibo = \App\Libraries\CobroService::registrar(
+                (int) $venta['cliente_id'], $monto, $forma, (string) ($this->request->getPost('referencia') ?? ''),
+                $notas !== '' ? $notas : ($monto >= $falta - 0.004 ? 'Pago total' : 'Abono') . ' desde detalle de venta',
+                ['empresa_id' => $this->empresaId(), 'sucursal_id' => $this->sucursalId()], $ventaId
+            );
+            if ($tieneFoto) {
+                Db::update('cobros', ['comprobante' => \App\Libraries\Comprobantes::guardar($foto, 'c' . $recibo['cobro_id'])], ['cobro_id' => $recibo['cobro_id']]);
+            }
+            Db::commit();
+            AuditService::log('cobros.crear', "Abono {$recibo['numero']} de $" . number_format($monto, 2) . " ({$forma}) a la venta #{$ventaId}", $ventaId, 'venta', [], $this->empresaId());
+            $queda = round($falta - $monto, 2);
+            $this->success('Abono registrado (recibo ' . $recibo['numero'] . ', ' . $forma . ' $' . number_format($monto, 2) . '). '
+                . ($queda > 0.004 ? 'Falta $' . number_format($queda, 2) . '.' : 'Factura pagada.'));
+        } catch (\Throwable $e) {
+            Db::rollback();
+            $this->error('Error al registrar el pago: ' . $e->getMessage());
+        }
+
+        return redirect()->to("/ventas/venta/{$ventaId}");
+    }
+
+    // ── Mini-API del POS (sesión, JSON) ──────────────────────────────────────
+
+    /**
+     * Búsqueda: primero coincidencia exacta de código / código de barras (lector),
+     * si no hay, búsqueda parcial (nombre con todas las palabras, en cualquier orden).
+     */
+    public function apiBuscarProductos()
+    {
+        $q          = trim((string) ($this->request->getGet('q') ?? ''));
+        $sucursalId = $this->sucursalId();
+        $s          = (int) $sucursalId; // precios de esta tienda
+        $costo      = ver_costos() ? \App\Libraries\PrecioTienda::sqlCosto($s) . ' AS costo,' : '';
+
+        // Depósito pedido por la pantalla (Nueva venta usa el Depósito 2): solo sus productos y su stock
+        $depId = (int) ($this->request->getGet('deposito_id') ?? 0);
+        if ($depId > 0 && !\App\Libraries\SucursalService::puedeUsarDeposito($depId, (int) $sucursalId)) {
+            $depId = 0;
+        }
+        $depI  = $depId > 0 ? " AND i.deposito_id = {$depId}" : '';
+        $depI2 = $depId > 0 ? " AND i2.deposito_id = {$depId}" : '';
+
+        $base = "SELECT p.producto_id, p.codigo, p.nombre, p.codigo_barras, p.supplier_part_no, p.itbms, p.unidad_medida, {$costo}
+                        p.maneja_lotes, p.imagen_principal, p.marca AS lugar2,
+                        (SELECT d.nombre FROM inventario i
+                           JOIN depositos d ON i.deposito_id = d.deposito_id
+                          WHERE i.producto_id = p.producto_id AND d.sucursal_id = ? AND i.existencia > 0{$depI}
+                          ORDER BY d.es_principal DESC LIMIT 1) AS lugar,
+                        COALESCE((SELECT SUM(i.existencia) FROM inventario i
+                                    JOIN depositos d ON i.deposito_id = d.deposito_id
+                                   WHERE i.producto_id = p.producto_id AND d.sucursal_id = ?{$depI}), 0) AS stock,
+                        COALESCE(pp_a.precio, 0) AS precio_a,
+                        COALESCE(pp_b.precio, 0) AS precio_b,
+                        COALESCE(pp_c.precio, 0) AS precio_c
+                 FROM productos p
+                 LEFT JOIN precios_productos pp_a ON p.producto_id = pp_a.producto_id AND pp_a.tipo_precio = 'a' AND pp_a.sucursal_id = {$s}
+                 LEFT JOIN precios_productos pp_b ON p.producto_id = pp_b.producto_id AND pp_b.tipo_precio = 'b' AND pp_b.sucursal_id = {$s}
+                 LEFT JOIN precios_productos pp_c ON p.producto_id = pp_c.producto_id AND pp_c.tipo_precio = 'c' AND pp_c.sucursal_id = {$s}
+                 WHERE p.estado = 'activo' AND p.empresa_id = ?
+                   AND EXISTS (SELECT 1 FROM inventario i2
+                                 JOIN depositos d2 ON i2.deposito_id = d2.deposito_id
+                                WHERE i2.producto_id = p.producto_id AND d2.sucursal_id = ?{$depI2})";
+        $baseParams = [$sucursalId, $sucursalId, $this->empresaId(), $sucursalId];
+
+        // Exacto (lector): código de barras, código interno o referencia del proveedor del producto…
+        $productos = Db::all($base . ' AND (p.codigo_barras = ? OR p.codigo = ? OR p.supplier_part_no = ?) LIMIT 1', [...$baseParams, $q, $q, $q]);
+        $exacto    = !empty($productos);
+        // Lector con teclado de EE. UU. en una PC latinoamericana: "PROD'00054" es "PROD-00054"
+        if (empty($productos) && str_contains($q, "'")) {
+            $q = str_replace("'", '-', $q);
+            $productos = Db::all($base . ' AND (p.codigo_barras = ? OR p.codigo = ? OR p.supplier_part_no = ?) LIMIT 1', [...$baseParams, $q, $q, $q]);
+            $exacto    = !empty($productos);
+        }
+        // …o el código de barras de una presentación (caja, paca): se vende esa presentación
+        $unidadEscaneada = null;
+        if (empty($productos) && $q !== '') {
+            $u = Db::row(
+                "SELECT u.unidad_id, u.producto_id FROM productos_unidades u JOIN productos p ON p.producto_id = u.producto_id
+                 WHERE p.empresa_id = ? AND u.codigo_barras = ? AND u.codigo_barras <> '' LIMIT 1",
+                [$this->empresaId(), $q]
+            );
+            if ($u) {
+                $productos = Db::all($base . ' AND p.producto_id = ? LIMIT 1', [...$baseParams, (int) $u['producto_id']]);
+                $unidadEscaneada = (int) $u['unidad_id'];
+                $exacto = !empty($productos);
+            }
+        }
+
+        if (empty($productos)) {
+            $terminos   = preg_split('/\s+/', $q, -1, PREG_SPLIT_NO_EMPTY) ?: [$q];
+            $condNombre = implode(' AND ', array_fill(0, count($terminos), 'p.nombre LIKE ?'));
+            $params     = [...$baseParams, "%{$q}%", "%{$q}%", "%{$q}%"];
+            foreach ($terminos as $t) {
+                $params[] = "%{$t}%";
+            }
+            $productos = Db::all($base . " AND (p.codigo_barras LIKE ? OR p.codigo LIKE ? OR p.supplier_part_no LIKE ? OR ({$condNombre})) LIMIT 100", $params);
+        }
+
+        foreach ($productos as &$p) {
+            $p['unidades'] = \App\Libraries\PrecioTienda::unidades((int) $p['producto_id'], $s, 'u.unidad_id');
+            if ($unidadEscaneada) $p['unidad_escaneada'] = $unidadEscaneada;
+        }
+        unset($p);
+
+        // exacto = coincidió con un código completo (lector o código tecleado): la pantalla lo agrega sola
+        return $this->json(['productos' => $productos, 'exacto' => $exacto && count($productos) === 1]);
+    }
+
+    public function apiInfoCliente(int $clienteId)
+    {
+        $row = Db::row(
+            "SELECT limite_credito, saldo_pendiente, dias_credito FROM clientes WHERE cliente_id = ? AND empresa_id = ? LIMIT 1",
+            [$clienteId, $this->empresaId()]
+        );
+
+        if (!$row) {
+            return $this->json(['error' => 'Cliente no encontrado'], 404);
+        }
+
+        $limite    = (float) $row['limite_credito'];
+        $pendiente = (float) $row['saldo_pendiente'];
+        $dias      = (int) $row['dias_credito'];
+
+        return $this->json([
+            'limite_credito'     => $limite,
+            'saldo_pendiente'    => $pendiente,
+            'credito_disponible' => max(0, $limite - $pendiente),
+            'dias_credito'       => $dias,
+            'tiene_credito'      => $limite > 0 && $dias > 0,
+        ]);
+    }
+
+    /** Cliente rápido desde el POS (también lo usa la PWA). */
+    public function crearClienteRapido()
+    {
+        $data   = $this->jsonInput();
+        $nombre = trim((string) ($data['nombre'] ?? ''));
+
+        if ($nombre === '') {
+            return $this->json(['error' => 'El nombre es requerido'], 422);
+        }
+
+        $codigo = trim((string) ($data['codigo'] ?? '')) ?: NumeracionService::siguiente('cliente', $this->empresaId());
+
+        try {
+            $clienteId = Db::insert('clientes', [
+                'empresa_id'     => $this->empresaId(),
+                'codigo'         => $codigo,
+                'nombre'         => $nombre,
+                'tipo'           => $data['tipo'] ?? 'natural',
+                'ruc'            => trim((string) ($data['ruc'] ?? '')),
+                'dv'             => trim((string) ($data['dv'] ?? '')),
+                'direccion'      => trim((string) ($data['direccion'] ?? '')),
+                'telefono'       => trim((string) ($data['telefono'] ?? '')),
+                'email'          => trim((string) ($data['email'] ?? '')),
+                // El límite de crédito solo lo fija quien puede editar clientes (un cajero no se da crédito a sí mismo)
+                'limite_credito' => Auth::can('clientes.editar') && is_numeric($data['limite_credito'] ?? null) ? max(0, round((float) $data['limite_credito'], 2)) : 0,
+                'dias_credito'   => is_numeric($data['dias_credito'] ?? null) ? $data['dias_credito'] : 0,
+                'itbms'          => (($data['itbms'] ?? 'SI') === 'NO') ? 0.00 : 7.00,
+                'estado'         => ($data['estado'] ?? 'activo') === 'inactivo' ? 'inactivo' : 'activo',
+                'saldo'          => 0,
+                'vendedor_id'    => Auth::id(),
+                'fecha_registro' => date('Y-m-d H:i:s'),
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', 'Cliente rápido: ' . $e->getMessage());
+            return $this->json(['error' => 'Error al crear el cliente'], 500);
+        }
+
+        AuditService::log('clientes.crear', "Cliente creado: {$nombre}", $clienteId, 'cliente', [], $this->empresaId());
+        $limite = (float) Db::value("SELECT limite_credito FROM clientes WHERE cliente_id = ?", [$clienteId]);
+        return $this->json(['success' => true, 'cliente_id' => $clienteId, 'nombre' => $nombre, 'codigo' => $codigo, 'limite_credito' => $limite]);
+    }
+
+    /** POST JSON {limite_credito} — sube/cambia el límite de crédito desde la venta (clientes.editar). */
+    public function limiteCredito(int $clienteId)
+    {
+        $cliente = Db::row("SELECT cliente_id, nombre, limite_credito FROM clientes WHERE cliente_id = ? AND empresa_id = ?", [$clienteId, $this->empresaId()]);
+        if (!$cliente) {
+            return $this->json(['error' => 'Cliente no encontrado.'], 404);
+        }
+        $limite = (float) ($this->jsonInput()['limite_credito'] ?? -1);
+        if ($limite < 0 || $limite > 1000000) {
+            return $this->json(['error' => 'Límite no válido.'], 422);
+        }
+        $limite = round($limite, 2);
+        Db::update('clientes', ['limite_credito' => $limite], ['cliente_id' => $clienteId]);
+        AuditService::log('clientes.editar', "Límite de crédito de {$cliente['nombre']}: $" . number_format((float) $cliente['limite_credito'], 2) . " → $" . number_format($limite, 2),
+            $clienteId, 'cliente', ['antes' => (float) $cliente['limite_credito'], 'despues' => $limite], $this->empresaId());
+        return $this->json(['success' => true, 'limite_credito' => $limite]);
+    }
+
+    public function apiVerificarStock(int $productoId)
+    {
+        $inventarios = Db::all(
+            "SELECT i.*, d.nombre AS deposito_nombre
+             FROM inventario i
+             JOIN depositos d ON i.deposito_id = d.deposito_id
+             JOIN productos p ON i.producto_id = p.producto_id
+             WHERE i.producto_id = ? AND d.sucursal_id = ? AND p.empresa_id = ?",
+            [$productoId, $this->sucursalId(), $this->empresaId()]
+        );
+
+        return $this->json([
+            'producto_id' => $productoId,
+            'stock_total' => array_sum(array_column($inventarios, 'existencia')),
+            'inventarios' => $inventarios,
+        ]);
+    }
+
+    public function apiDepositos()
+    {
+        return $this->json(['depositos' => Db::all(
+            "SELECT deposito_id, codigo, nombre, es_principal FROM depositos WHERE estado = 'activo' AND sucursal_id = ? ORDER BY nombre",
+            [$this->sucursalId()]
+        )]);
+    }
+
+    /**
+     * Ventas por día (vista reportes/ventas_periodo). Por defecto el día de hoy;
+     * acepta ?desde=&hasta= como el reporte "Ventas por período".
+     */
+    public function reporteVentasDiarias(): string
+    {
+        $desde  = (string) ($this->request->getGet('desde') ?: date('Y-m-d'));
+        $hasta  = (string) ($this->request->getGet('hasta') ?: date('Y-m-d'));
+        $params = [$desde, $hasta, $this->sucursalId()];
+
+        return $this->render('reportes.ventas_periodo', [
+            'page_title'    => 'Ventas por día',
+            'page_subtitle' => $desde === $hasta ? "Ventas del {$desde}" : "{$desde} - {$hasta}",
+            'desde'         => $desde,
+            'hasta'         => $hasta,
+            'ventas'        => Db::all(
+                "SELECT DATE(fecha) AS fecha_emision, COUNT(*) AS total_transacciones,
+                        SUM(total) AS total, SUM(subtotal) AS subtotal, SUM(itbms) AS itbms, SUM(costo) AS costo
+                 FROM ventas
+                 WHERE DATE(fecha) BETWEEN ? AND ? AND estado != 'anulada' AND sucursal_id = ?
+                 GROUP BY DATE(fecha) ORDER BY fecha_emision",
+                $params
+            ),
+            'totales' => Db::row(
+                "SELECT COUNT(*) AS cantidad, COALESCE(SUM(total), 0) AS total, COALESCE(SUM(subtotal), 0) AS subtotal,
+                        COALESCE(SUM(itbms), 0) AS itbms, COALESCE(SUM(costo), 0) AS costo
+                 FROM ventas WHERE DATE(fecha) BETWEEN ? AND ? AND estado != 'anulada' AND sucursal_id = ?",
+                $params
+            ),
+        ]);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private function clientesActivos(): array
+    {
+        return Db::all("SELECT * FROM clientes WHERE estado = 'activo' AND empresa_id = ? ORDER BY nombre", [$this->empresaId()]);
+    }
+
+    /**
+     * Depósito de donde sale la mercancía en "Nueva venta" (ventas al por mayor). Se configura con
+     * ventas.deposito_nueva_venta = <id> en .env; si no está, el principal de la tienda.
+     */
+    private function depositoNuevaVenta(): int
+    {
+        $deps = $this->depositosActivos();
+        $id   = (int) env('ventas.deposito_nueva_venta', 0);
+        foreach ($deps as $d) {
+            if ((int) $d['deposito_id'] === $id) {
+                return $id;
+            }
+        }
+        return (int) ($deps[0]['deposito_id'] ?? 0);
+    }
+
+    private function depositosActivos(): array
+    {
+        return Db::all("SELECT * FROM depositos WHERE estado = 'activo' AND sucursal_id = ? ORDER BY es_principal DESC, nombre", [$this->sucursalId()]);
+    }
+}

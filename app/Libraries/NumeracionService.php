@@ -38,7 +38,7 @@ class NumeracionService
         'compra'     => ['tabla' => 'compras',       'columna' => 'numero_factura'],
     ];
 
-    private const REINICIOS_VALIDOS = ['nunca', 'diario', 'mensual', 'anual', 'continuo'];
+    private const REINICIOS_VALIDOS = ['nunca', 'diario', 'mensual', 'anual', 'continuo', 'clasico'];
 
     /** Tipos cuya serie se separa por sucursal (prefijo de branches.prefijo). */
     private const TIPOS_POR_SUCURSAL = ['factura', 'cotizacion', 'compra'];
@@ -63,6 +63,9 @@ class NumeracionService
 
         if ($cfg['reinicio'] === 'continuo') {
             return self::siguienteContinuo($cfg, $empresaId, $tabla, $columna);
+        }
+        if ($cfg['reinicio'] === 'clasico') {
+            return self::siguienteClasico($cfg, $empresaId, $tabla, $columna);
         }
 
         $fecha = match ($cfg['reinicio']) {
@@ -143,11 +146,48 @@ class NumeracionService
     }
 
     /**
+     * Modo "clasico" (cotizaciones del sistema anterior, 2026Z1113COT-00002547):
+     *   {AAAA}Z{MMDD}{prefijo}{separador}{secuencial}. El secuencial no se reinicia: se toma el mayor ya usado.
+     */
+    private static function siguienteClasico(array $cfg, int $empresaId, string $tabla, string $columna): string
+    {
+        $prefijo   = (string) ($cfg['prefijo'] ?? '');
+        $separador = (string) ($cfg['separador'] ?? '');
+        $digitos   = max(1, (int) $cfg['digitos']);
+        $largo     = 9 + strlen($prefijo) + strlen($separador) + $digitos;
+
+        $escapar = static fn (string $t): string => str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $t);
+        $patron  = '____Z____' . $escapar($prefijo) . $escapar($separador) . str_repeat('_', $digitos);
+        $regex   = '^[0-9]{4}Z[0-9]{4}' . preg_quote($prefijo, '/') . preg_quote($separador, '/') . '[0-9]{' . $digitos . '}$';
+
+        $row = Db::query(
+            "SELECT {$columna} AS c FROM {$tabla}
+             WHERE empresa_id = ? AND {$columna} LIKE ? ESCAPE '\\\\' AND LENGTH({$columna}) = ? AND {$columna} REGEXP ?
+             ORDER BY RIGHT({$columna}, {$digitos}) DESC LIMIT 1",
+            [$empresaId, $patron, $largo, $regex]
+        )->getRowArray();
+
+        $siguiente = 1;
+        if ($row) {
+            $sufijo = substr((string) $row['c'], -$digitos);
+            if (ctype_digit($sufijo)) {
+                $siguiente = (int) $sufijo + 1;
+            }
+        }
+
+        return date('Y') . 'Z' . date('md') . $prefijo . $separador . str_pad((string) $siguiente, $digitos, '0', STR_PAD_LEFT);
+    }
+
+    /**
      * Devuelve un ejemplo del número que se generaría ahora mismo, sin consultar la BD
      * (para la vista previa en pantalla mientras se edita la configuración).
      */
     public static function ejemplo(array $cfg, string $prefijoSucursal = ''): string
     {
+        if (($cfg['reinicio'] ?? 'nunca') === 'clasico') {
+            return date('Y') . 'Z' . date('md') . ($cfg['prefijo'] ?? '') . ($cfg['separador'] ?? '')
+                . str_pad('1', max(1, (int) ($cfg['digitos'] ?? 8)), '0', STR_PAD_LEFT);
+        }
         if (($cfg['reinicio'] ?? 'nunca') === 'continuo') {
             return ($cfg['prefijo'] ?? '') . date('Ymd') . ($cfg['separador'] ?? '')
                 . str_pad('1', max(1, (int) ($cfg['digitos'] ?? 4)), '0', STR_PAD_LEFT);

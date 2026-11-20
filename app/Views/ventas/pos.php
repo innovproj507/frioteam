@@ -900,18 +900,18 @@
                     const tr = document.createElement('tr');
                     tr.className = filaColor + " transition-colors";
                     tr.innerHTML = `
-                        <td class="px-3 py-0.5 text-xs font-semibold text-gray-700 whitespace-nowrap">${escHtml(p.ubic1 || '')}</td>
-                        <td class="px-3 py-0.5 text-xs font-semibold text-gray-700 whitespace-nowrap">${escHtml(p.ubic2 || '')}</td>
-                        <td class="px-3 py-0.5 text-xs font-mono text-gray-600">${escHtml(p.codigo)}</td>
+                        <td class="px-3 py-0.5 text-sm font-normal text-gray-700 whitespace-nowrap">${escHtml(p.ubic1 || '')}</td>
+                        <td class="px-3 py-0.5 text-sm font-normal text-gray-700 whitespace-nowrap">${escHtml(p.ubic2 || '')}</td>
+                        <td class="px-3 py-0.5 text-base font-mono font-bold text-gray-900">${escHtml(p.codigo)}</td>
                         <td class="px-3 py-0.5">
-                            <div class="text-sm font-semibold text-gray-900">${escHtml(p.nombre)}</div>
+                            <div class="text-sm font-normal text-gray-900">${escHtml(p.nombre)}</div>
                             ${presentaciones}
                         </td>
                         <td class="px-3 py-0.5 text-center text-sm font-semibold ${stock > 0 ? 'text-gray-700' : 'text-red-500'}">${stockTxt}</td>
                         <td class="px-1 py-0.5 text-center">${btnPrecio(parseInt(p.producto_id, 10), 'a', prA, 'bg-blue-600 hover:bg-blue-700')}</td>
                         <td class="px-1 py-0.5 text-center">${prB > 0 ? btnPrecio(parseInt(p.producto_id, 10), 'b', prB, 'bg-green-600 hover:bg-green-700') : sinPrecio}</td>
                         <td class="px-1 py-0.5 text-center">${prC > 0 ? btnPrecio(parseInt(p.producto_id, 10), 'c', prC, 'bg-amber-500 hover:bg-amber-600') : sinPrecio}</td>
-                        <td class="px-3 py-0.5 text-center"><img src="${escHtml(imgUrl)}" data-nombre="${escHtml(p.nombre)}" data-codigo="${escHtml(p.codigo)}" onclick="abrirFoto(this)" title="Clic para ampliar la foto" onerror="this.onerror=null;this.src='/assets/img/no-image.svg'" class="w-12 h-12 object-cover rounded shadow-sm border border-gray-200 mx-auto cursor-zoom-in hover:ring-2 hover:ring-sky-400 transition"></td>
+                        <td class="px-3 py-0.5 text-center"><img src="${escHtml(imgUrl)}" data-nombre="${escHtml(p.nombre)}" data-codigo="${escHtml(p.codigo)}" onclick="abrirFoto(this)" title="Clic para ampliar la foto" onerror="this.onerror=null;this.src='/assets/img/no-image.svg'" class="object-cover rounded shadow-sm border border-gray-200 mx-auto cursor-zoom-in hover:ring-2 hover:ring-sky-400 transition" style="width:64px;min-width:64px;height:48px;box-sizing:border-box"></td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -1076,17 +1076,17 @@
                 const linea = (item.cantidad * item.precio) - descMonto;
                 tr.innerHTML = `
                     <td class="px-3 py-0.5 text-xs text-gray-400">${i + 1}</td>
-                    <td class="px-3 py-0.5 text-xs font-semibold text-gray-700 whitespace-nowrap">${escHtml(item.ubic1 || '')}</td>
-                    <td class="px-3 py-0.5 text-xs font-semibold text-gray-700 whitespace-nowrap">${escHtml(item.ubic2 || '')}</td>
-                    <td class="px-3 py-0.5 text-xs font-mono text-gray-600 cursor-pointer" ondblclick="editarProductoFila(${i})" title="Doble clic para cambiar el producto">${escHtml(item.codigo)}</td>
+                    <td class="px-3 py-0.5 text-sm font-normal text-gray-700 whitespace-nowrap">${escHtml(item.ubic1 || '')}</td>
+                    <td class="px-3 py-0.5 text-sm font-normal text-gray-700 whitespace-nowrap">${escHtml(item.ubic2 || '')}</td>
+                    <td class="px-3 py-0.5 text-base font-mono font-bold text-gray-900 cursor-pointer" ondblclick="editarProductoFila(${i})" title="Doble clic para cambiar el producto">${escHtml(item.codigo)}</td>
                     <td class="px-3 py-0.5 cursor-pointer" ondblclick="editarProductoFila(${i})" title="Doble clic para cambiar el producto">
-                        <span class="text-sm font-medium text-gray-900 line-clamp-1">${escHtml(item.nombre)}${item.presentacion && item.presentacion !== 'Unid.' ? ' <span class="text-[11px] text-sky-600 font-semibold">(' + escHtml(item.presentacion) + ')</span>' : ''}</span>
+                        <span class="text-sm font-normal text-gray-900 line-clamp-1">${escHtml(item.nombre)}${item.presentacion && item.presentacion !== 'Unid.' ? ' <span class="text-[11px] text-sky-600 font-semibold">(' + escHtml(item.presentacion) + ')</span>' : ''}</span>
                     </td>
                     <td class="px-3 py-0.5 text-center whitespace-nowrap">
-                        <button type="button" onclick="editarPrecioFila(${i})" class="w-6 h-6 mr-1 rounded text-sky-600 hover:text-white hover:bg-sky-500 transition-colors align-middle" title="Ver y elegir otro precio (A, B o C)"><i class="fas fa-pen-to-square text-xs"></i></button><input type="number" min="0.01" step="any" value="${item.cantidad}" class="w-14 h-6 text-center border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos" onchange="cambiarCantidad(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
+                        <button type="button" onclick="editarPrecioFila(${i})" class="w-6 h-6 mr-1 rounded text-sky-600 hover:text-white hover:bg-sky-500 transition-colors align-middle" title="Ver y elegir otro precio (A, B o C)"><i class="fas fa-pen-to-square text-xs"></i></button><input type="text" inputmode="numeric" autocomplete="off" value="${Math.round(item.cantidad)}" class="w-14 h-6 text-center border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos" onfocus="this.select()" oninput="soloEntero(this)" onchange="cambiarCantidad(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
                     </td>
                     <td class="px-3 py-0.5 text-center">
-                        <input type="number" step="0.01" min="0" value="${item.precio.toFixed(2)}" class="w-20 h-6 text-right border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos bg-gray-50" onchange="cambiarPrecio(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
+                        <input type="text" inputmode="decimal" autocomplete="off" value="${item.precio.toFixed(2)}" class="w-20 h-6 text-right border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos bg-gray-50" onfocus="this.select()" oninput="soloDecimal2(this)" onchange="cambiarPrecio(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
                     </td>
                     <td class="px-3 py-0.5 text-right text-sm font-bold text-gray-800">$${linea.toFixed(2)}</td>
                     <td class="px-3 py-0.5 text-center">
@@ -1158,15 +1158,29 @@
                 });
         }
 
+        // Validación de las casillas (sin flechitas): Cantidad = número entero; Precio = hasta 2 decimales
+        function soloEntero(el) {
+            el.value = el.value.replace(/\D/g, '').slice(0, 6);
+        }
+        function soloDecimal2(el) {
+            let v = el.value.replace(',', '.').replace(/[^0-9.]/g, '');
+            const p = v.indexOf('.');
+            if (p !== -1) v = v.slice(0, p + 1) + v.slice(p + 1).replace(/\./g, '').slice(0, 2);
+            el.value = v.slice(0, 10);
+        }
+
         function cambiarCantidad(i, v) {
-            carrito[i].cantidad = Math.round((parseFloat(v) || 0) * 100) / 100;
-            if (carrito[i].cantidad <= 0) eliminar(i);
-            else actualizarTabla();
+            const n = parseInt(v, 10);
+            // Vacío o 0: se conserva la cantidad que tenía (para quitar la línea está el basurero)
+            if (!n || n < 1) { actualizarTabla(); return; }
+            carrito[i].cantidad = n;
+            actualizarTabla();
         }
 
         function cambiarPrecio(i, v) {
-            carrito[i].precio = parseFloat(v) || 0;
-            if (carrito[i].precio < 0) carrito[i].precio = 0;
+            const n = parseFloat(String(v).replace(',', '.'));
+            if (isNaN(n) || n < 0) { actualizarTabla(); return; }   // inválido: se conserva el precio
+            carrito[i].precio = Math.round(n * 100) / 100;
             actualizarTabla();
         }
 

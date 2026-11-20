@@ -69,6 +69,7 @@ $tipos = [
                             <option value="mensual" <?= $cfg['reinicio'] === 'mensual' ? 'selected' : '' ?>>Cada mes</option>
                             <option value="anual"   <?= $cfg['reinicio'] === 'anual'   ? 'selected' : '' ?>>Cada año</option>
                             <option value="continuo" <?= $cfg['reinicio'] === 'continuo' ? 'selected' : '' ?>>Fecha en el número, contador continuo</option>
+                            <option value="clasico" <?= $cfg['reinicio'] === 'clasico' ? 'selected' : '' ?>>Estilo anterior: AAAAZMMDD + prefijo, contador continuo</option>
                         </select>
                     </div>
                 </div>
@@ -125,6 +126,10 @@ $tipos = [
         const base = partes.join(separador) + separador;
         const secuencial = '1'.padStart(digitos, '0');
 
+        if (reinicio === 'clasico') {   // AAAA + Z + MMDD + prefijo + separador + contador continuo
+            document.getElementById(tipo + '_ejemplo').textContent = hoy.getFullYear() + 'Z' + pad2(hoy.getMonth() + 1) + pad2(hoy.getDate()) + prefijo + separador + secuencial;
+            return;
+        }
         if (reinicio === 'continuo') {   // PREFIJO + AAAAMMDD + separador + contador continuo
             const f = '' + hoy.getFullYear() + pad2(hoy.getMonth() + 1) + pad2(hoy.getDate());
             document.getElementById(tipo + '_ejemplo').textContent = prefijo + f + separador + secuencial;

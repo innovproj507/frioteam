@@ -255,7 +255,7 @@
                                 class="px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pos focus:border-transparent">
                                 <option value="">Consumidor Final</option>
                                 <?php foreach (($clientes ?? []) as $cliente): ?>
-                                <option value="<?= $cliente['cliente_id'] ?>"><?= esc(mb_substr($cliente['nombre'], 0, 40)) ?></option>
+                                <option value="<?= $cliente['cliente_id'] ?>"<?= isset($cliente['itbms']) && (float) $cliente['itbms'] <= 0 ? ' data-exento="1"' : '' ?>><?= esc(mb_substr($cliente['nombre'], 0, 40)) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -371,7 +371,7 @@
                         </div>
 
                         <div class="flex justify-between items-center"<?= tasa_itbms() > 0 ? "" : " style=\"display:none\"" ?>>
-                            <span class="text-sm text-gray-600">ITBMS (<?= rtrim(rtrim(number_format(tasa_itbms() * 100, 2), "0"), ".") ?>%)</span>
+                            <span id="itbms-etiqueta" data-base="ITBMS (<?= rtrim(rtrim(number_format(tasa_itbms() * 100, 2), "0"), ".") ?>%)" class="text-sm text-gray-600">ITBMS (<?= rtrim(rtrim(number_format(tasa_itbms() * 100, 2), "0"), ".") ?>%)</span>
                             <span id="itbms" class="text-sm font-bold text-green-600">$0.00</span>
                         </div>
 
@@ -479,8 +479,8 @@
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-semibold text-gray-500 mb-1">RUC / Cédula</label>
-                            <input type="text" id="nc-ruc" placeholder="Ej: 8-000-000"
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">RUC / Cédula <span class="text-red-500">*</span></label>
+                            <input type="text" id="nc-ruc" required placeholder="Ej: 8-000-000"
                                 class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent">
                         </div>
                         <div>
@@ -593,7 +593,17 @@
         let resultadosBusqueda = [];
         let paginaActual = 1;
         const resultadosPorPagina = 5;
-        const TASA_ITBMS = <?= json_encode(tasa_itbms()) ?>;
+        const TASA_ITBMS_BASE = <?= json_encode(tasa_itbms()) ?>;
+        let TASA_ITBMS = TASA_ITBMS_BASE;
+        /** El cliente "No (Exento)" no paga ITBMS: la tasa pasa a 0 mientras esté elegido. */
+        function aplicarExencionCliente() {
+            const opt = document.querySelector('#txcliente option:checked');
+            const exento = !!(opt && opt.value && opt.dataset.exento === '1');
+            TASA_ITBMS = exento ? 0 : TASA_ITBMS_BASE;
+            const lbl = document.getElementById('itbms-etiqueta');
+            if (lbl) lbl.textContent = exento ? 'ITBMS (Exento)' : lbl.dataset.base;
+            if (typeof actualizarTabla === 'function') actualizarTabla();
+        }
         const MAX_DESCUENTO_PCT = <?= (int)($max_descuento_pct ?? 10) ?>;
         // El vendedor no ve el Precio(A): solo B y C
         const VER_PRECIO_A = <?= \App\Libraries\Auth::can('productos.ver_precio_a') ? 'true' : 'false' ?>;
@@ -658,6 +668,7 @@
                     const id = $(this).val();
                     if (id) cargarCreditoCliente(parseInt(id));
                     else limpiarCreditoCliente();
+                    aplicarExencionCliente();
                 });
             });
 
@@ -1394,6 +1405,7 @@
         async function guardarNuevoCliente() {
             const nombre = document.getElementById('nc-nombre').value.trim();
             if (!nombre) { document.getElementById('nc-nombre').focus(); return; }
+            if (!document.getElementById('nc-ruc').value.trim()) { toast('La cédula o RUC es obligatoria', 'error'); document.getElementById('nc-ruc').focus(); return; }
 
             const btn = document.getElementById('btn-guardar-cliente');
             btn.disabled = true;
@@ -1426,7 +1438,9 @@
 
                 // Agregar al Select2 y seleccionarlo
                 const opt = new Option(res.nombre, res.cliente_id, true, true);
+                if (res.exento) opt.dataset.exento = '1';
                 $('#txcliente').append(opt).trigger('change');
+                aplicarExencionCliente();
 
                 cerrarModalCliente();
                 toast('Cliente "' + res.nombre + '" creado', 'success');

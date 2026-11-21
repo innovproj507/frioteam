@@ -258,7 +258,7 @@ class ApiVentaController extends ApiController
                 return [[], $this->fallo("\"{$producto['nombre']}\" no tiene precio de venta asignado.", 422)];
             }
 
-            if ($validarStock) {
+            if ($validarStock && !VentaService::permiteSinStock()) {
                 $existencia = (float) (Db::value("SELECT existencia FROM inventario WHERE producto_id = ? AND deposito_id = ?", [$productoId, $depositoId]) ?? 0);
                 if ($cantidad > $existencia) {
                     return [[], $this->fallo("Stock insuficiente de \"{$producto['nombre']}\" (hay {$existencia}).", 422)];

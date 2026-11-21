@@ -27,7 +27,10 @@ class CotizacionController extends BaseController
         $clienteId  = (string) ($this->request->getGet('cliente') ?? '');
         $sucursalId = $this->sucursalId();
 
-        $where  = 'co.sucursal_id = ?';
+        // Origen: "web" = pedidos de la tienda en línea (llevan [WEB …] en las notas); "pos" = todo lo demás
+        $origen = (string) ($this->request->getGet('origen') ?? 'pos');
+        if (!in_array($origen, ['pos', 'web'], true)) $origen = 'pos';
+        $where  = 'co.sucursal_id = ? AND ' . ($origen === 'web' ? "co.notas LIKE '[WEB %'" : "(co.notas IS NULL OR co.notas NOT LIKE '[WEB %')");
         $params = [$sucursalId];
 
         if ($buscar !== '') {
@@ -81,8 +84,9 @@ class CotizacionController extends BaseController
         $totalC   = (float) $metricas['total'];
 
         return $this->render('cotizaciones.lista', [
-            'page_title'             => 'Cotizaciones',
-            'page_subtitle'          => 'Gestión de cotizaciones',
+            'page_title'             => $origen === 'web' ? 'Cotizaciones web' : 'Cotizaciones POS',
+            'page_subtitle'          => $origen === 'web' ? 'Pedidos que hacen los clientes desde la tienda web' : 'Cotizaciones del POS y del sistema',
+            'origen'                 => $origen,
             'cotizaciones'           => $cotizaciones,
             'clientes'               => Db::all("SELECT * FROM clientes WHERE estado = 'activo' AND empresa_id = ? ORDER BY nombre", [$this->empresaId()]),
             'buscar'                 => $buscar,
@@ -287,6 +291,67 @@ class CotizacionController extends BaseController
                 [$cotizacionId]
             ),
         ]);
+    }
+
+    /** Cotización que pidió un cliente en la tienda web: el administrador le pone los precios. */
+    public function precios(int $cotizacionId)
+    {
+        $cotizacion = $this->buscar($cotizacionId);
+        if (!$cotizacion || !str_starts_with((string) $cotizacion['notas'], '[WEB ')) {
+            $this->error('Esta cotización no es de la tienda web.');
+            return redirect()->to('/ventas/cotizaciones?origen=web');
+        }
+        if ($cotizacion['estado'] === 'convertida') {
+            $this->error('La cotización ya se convirtió en venta: no se puede cambiar el precio.');
+            return redirect()->to("/ventas/cotizaciones/{$cotizacionId}");
+        }
+        return $this->render('cotizaciones.precios', [
+            'page_title'    => 'Precios de ' . $cotizacion['numero'],
+            'page_subtitle' => 'Cotización pedida desde la tienda web',
+            'cotizacion'    => $cotizacion,
+            'detalles'      => $this->detalles($cotizacionId),
+            'exento'        => \App\Libraries\VentaService::clienteExento($cotizacion['cliente_id'] ? (int) $cotizacion['cliente_id'] : null),
+            'tasa'          => (float) env('ITBMS_RATE', 0.07),
+        ]);
+    }
+
+    /** Guarda los precios; con "enviar" la cotización pasa a "aprobada" y el cliente ya ve sus precios en la tienda. */
+    public function guardarPrecios(int $cotizacionId)
+    {
+        $cotizacion = $this->buscar($cotizacionId);
+        if (!$cotizacion || !str_starts_with((string) $cotizacion['notas'], '[WEB ') || $cotizacion['estado'] === 'convertida') {
+            $this->error('No se puede cambiar el precio de esta cotización.');
+            return redirect()->to('/ventas/cotizaciones?origen=web');
+        }
+        $enviar = $this->request->getPost('accion') === 'enviar';
+        $precios = (array) $this->request->getPost('precio');
+        $tasa = \App\Libraries\VentaService::clienteExento($cotizacion['cliente_id'] ? (int) $cotizacion['cliente_id'] : null) ? 0.0 : (float) env('ITBMS_RATE', 0.07);
+
+        $subtotal = 0.0;
+        $detalles = $this->detalles($cotizacionId);
+        foreach ($detalles as $d) {
+            $p = round((float) ($precios[$d['detalle_id']] ?? 0), 4);
+            if ($enviar && $p <= 0) {
+                $this->error('Pon el precio de todos los productos antes de enviarlo al cliente.');
+                return redirect()->to("/ventas/cotizaciones/{$cotizacionId}/precios");
+            }
+        }
+        foreach ($detalles as $d) {
+            $p     = max(0, round((float) ($precios[$d['detalle_id']] ?? 0), 4));
+            $linea = (float) $d['cantidad'] * $p;
+            $itb   = $linea * $tasa;
+            $subtotal += $linea;
+            Db::update('cotizaciones_detalle', ['precio' => $p, 'descuento' => 0, 'itbms' => $itb, 'total_linea' => $linea + $itb], ['detalle_id' => $d['detalle_id']]);
+        }
+        $itbmsTotal = $subtotal * $tasa;
+        Db::update('cotizaciones', [
+            'subtotal' => round($subtotal, 2), 'descuento' => 0, 'itbms' => round($itbmsTotal, 2),
+            'total' => round($subtotal + $itbmsTotal, 2), 'estado' => $enviar ? 'aprobada' : 'pendiente',
+        ], ['cotizacion_id' => $cotizacionId]);
+        AuditService::log('cotizaciones.precios', ($enviar ? 'Precios enviados al cliente web: ' : 'Precios guardados (borrador): ') . $cotizacion['numero'], $cotizacionId, 'cotizacion', [], $this->empresaId());
+
+        $this->success($enviar ? 'Precios enviados: el cliente ya los ve en su cuenta de la tienda.' : 'Precios guardados. El cliente aún no los ve.');
+        return redirect()->to($enviar ? "/ventas/cotizaciones/{$cotizacionId}" : "/ventas/cotizaciones/{$cotizacionId}/precios");
     }
 
     public function cambiarEstado(int $cotizacionId)

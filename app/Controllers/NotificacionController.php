@@ -54,6 +54,20 @@ class NotificacionController extends BaseController
             $agregar($n, 'fa-user-clock', 'orange', $n === 1 ? 'cliente debe más de su límite de crédito' : 'clientes deben más de su límite de crédito', '/clientes/cuentas-por-cobrar?ver=excedidos');
         }
 
+        if (Auth::can('clientes.editar')) {
+            try {
+                $n = (int) Db::value("SELECT COUNT(*) FROM tienda_solicitudes WHERE empresa_id = ? AND estado = 'pendiente'", [$empresa]);
+            } catch (\Throwable $e) {
+                $n = 0; // la tabla aún no existe (falta migrar)
+            }
+            $agregar($n, 'fa-globe', 'sky', $n === 1 ? 'solicitud de acceso a la tienda web' : 'solicitudes de acceso a la tienda web', '/clientes/solicitudes-web');
+        }
+
+        if (Auth::can('cotizaciones.ver')) {
+            $n = (int) Db::value("SELECT COUNT(*) FROM cotizaciones WHERE sucursal_id = ? AND estado = 'pendiente' AND notas LIKE '[WEB %'", [$s]);
+            $agregar($n, 'fa-file-invoice', 'emerald', $n === 1 ? 'cotización web pendiente' : 'cotizaciones web pendientes', '/ventas/cotizaciones?origen=web');
+        }
+
         return $this->json(['total' => array_sum(array_column($avisos, 'n')), 'avisos' => $avisos]);
     }
 }

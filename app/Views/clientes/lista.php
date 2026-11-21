@@ -105,6 +105,12 @@
                 <i class="fas fa-times"></i>
             </a>
             <?php endif; ?>
+            <?php if (\App\Libraries\Auth::can('clientes.editar')):
+                try { $nSolWeb = (int) \App\Libraries\Db::value("SELECT COUNT(*) FROM tienda_solicitudes WHERE estado = 'pendiente'"); } catch (\Throwable $e) { $nSolWeb = 0; } ?>
+            <a href="/clientes/solicitudes-web" class="inline-flex items-center gap-1.5 px-4 py-2 border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition">
+                <i class="fas fa-globe"></i> Solicitudes web<?php if ($nSolWeb > 0): ?> <span class="bg-rose-500 text-white text-xs font-bold rounded-full px-2"><?= $nSolWeb ?></span><?php endif; ?>
+            </a>
+            <?php endif; ?>
             <a href="/clientes/nuevo"
                 class="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-semibold hover:bg-sky-600 transition shadow-sm">
                 <i class="fas fa-user-plus"></i> Nuevo Cliente

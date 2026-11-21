@@ -16,9 +16,7 @@
         <div class="max-w-md w-full space-y-8">
             <!-- Logo -->
             <div class="text-center">
-                <div class="mx-auto w-44 h-44 bg-white rounded-3xl flex items-center justify-center mb-4 shadow-lg p-3">
-                    <img src="/assets/img/logo.png?v=2" alt="FrioTeam" class="w-full h-full object-contain">
-                </div>
+                <img src="/assets/img/logo-frioteam-dark.png?v=1" alt="FrioTeam" class="relative left-1/2 -translate-x-1/2 w-[34rem] max-w-[calc(100vw-2rem)] h-auto mb-2">
                 <h2 class="sr-only">FrioTeam</h2>
                 <p class="mt-2 text-sm text-gray-400">Punto de Venta e Inventario</p>
             </div>

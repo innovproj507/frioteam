@@ -19,6 +19,7 @@ $clientes_json = json_encode(array_map(function($c) use ($cliente_actual, &$clie
 <!-- Filtros + acciones -->
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
     <form method="get" id="cotizaciones-search-form" class="flex flex-wrap items-end gap-3">
+        <input type="hidden" name="origen" value="<?= esc($origen ?? 'pos') ?>">
         <div class="flex-1 min-w-36">
             <label class="block text-xs font-semibold text-gray-500 mb-1">Fecha Inicio</label>
             <input type="date" name="fecha_inicio" value="<?= esc($fecha_inicio_actual) ?>"
@@ -108,6 +109,10 @@ $clientes_json = json_encode(array_map(function($c) use ($cliente_actual, &$clie
                 </td>
                 <td class="px-5 py-3.5 whitespace-nowrap text-right text-sm">
                     <div class="flex justify-end gap-1.5">
+                        <?php if (($origen ?? '') === 'web' && ($cotizacion['estado'] ?? '') !== 'convertida'): ?>
+                        <a href="/ventas/cotizaciones/<?= $cotizacion['cotizacion_id'] ?>/precios" title="<?= ($cotizacion['estado'] ?? '') === 'pendiente' ? 'Poner precios' : 'Cambiar precios' ?>"
+                           class="h-8 px-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1 text-xs font-bold shadow-sm"><i class="fas fa-tags text-xs"></i> <?= ($cotizacion['estado'] ?? '') === 'pendiente' ? 'Precios' : 'Editar' ?></a>
+                        <?php endif; ?>
                         <a href="/ventas/cotizaciones/<?= $cotizacion['cotizacion_id'] ?>" title="Ver"
                            class="w-8 h-8 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center justify-center shadow-sm shadow-blue-500/30"><i class="fas fa-eye text-xs"></i></a>
                         <a href="/ventas/cotizaciones/<?= $cotizacion['cotizacion_id'] ?>/pdf" title="Descargar PDF"

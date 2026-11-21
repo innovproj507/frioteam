@@ -25,7 +25,8 @@ final class CotizacionService
             throw new \RuntimeException('No hay productos en la cotización.');
         }
 
-        $itbmsRate   = (float) env('ITBMS_RATE', 0.07);
+        $itbmsRate   = VentaService::clienteExento(!empty($data['cliente_id']) ? (int) $data['cliente_id'] : null)
+            ? 0.0 : (float) env('ITBMS_RATE', 0.07);
         $diasValidez = (int) env('COTIZACION_DIAS_VALIDEZ', 7);
         $numero      = NumeracionService::siguiente('cotizacion', $ctx['empresa_id'], (int) $ctx['sucursal_id']);
         $estado      = in_array($data['estado'] ?? '', self::ESTADOS, true) ? $data['estado'] : 'pendiente';

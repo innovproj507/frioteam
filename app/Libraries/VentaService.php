@@ -50,6 +50,8 @@ final class VentaService
         $formasPago       = array_unique(array_column($pagos, 'forma_pago'));
         $formaPagoResumen = count($formasPago) === 1 ? $formasPago[0] : 'MIXTO';
 
+        $exento        = self::clienteExento($clienteId);
+        if ($exento) $data['aplicar_itbms'] = false;
         $itbmsRate     = ($data['aplicar_itbms'] ?? true) ? (float) env('ITBMS_RATE', 0.07) : 0.0;
         $subtotal      = 0.0;
         $costoTotal    = 0.0;
@@ -127,7 +129,7 @@ final class VentaService
                      WHERE i.producto_id = ? AND i.deposito_id = ? FOR UPDATE",
                     [$productoId, $depositoId]
                 );
-                if (!$inv || (float) $inv['existencia'] < $cantidadBase - 0.0001) {
+                if ((!$inv || (float) $inv['existencia'] < $cantidadBase - 0.0001) && !self::permiteSinStock()) {
                     $nombre = $inv['nombre'] ?? Db::value("SELECT nombre FROM productos WHERE producto_id = ?", [$productoId]) ?? "#{$productoId}";
                     throw new \RuntimeException("Stock insuficiente de \"{$nombre}\" (hay " . (float) ($inv['existencia'] ?? 0) . ', pides ' . (float) $cantidadBase . ').');
                 }
@@ -158,6 +160,10 @@ final class VentaService
 
             if ($depositoId) {
                 $inventarioId = InventarioService::inventarioId($productoId, $depositoId);
+                if (!$inventarioId && self::permiteSinStock()) {
+                    // Producto que nunca tuvo existencia en este depósito: se abre su registro para que el kardex refleje la venta
+                    $inventarioId = Db::insert('inventario', ['producto_id' => $productoId, 'deposito_id' => $depositoId, 'existencia' => 0]);
+                }
                 if ($inventarioId) {
                     InventarioService::registrar($inventarioId, 'salida', $cantidadBase, $ventaId, 'ventas', "Venta #{$numeroFactura}");
                 }
@@ -342,6 +348,20 @@ final class VentaService
         return ['nota' => $numeroNota, 'monto' => $monto, 'a_credito' => $aCredito, 'reembolso' => $devolver, 'forma' => $forma, 'numero_factura' => (string) $v['numero_factura'], 'descripcion' => $descripcion];
     }
 
+    /** ¿Se puede vender un producto aunque no haya stock (el inventario queda en negativo)? VENTA_SIN_STOCK=false lo prohíbe. */
+    public static function permiteSinStock(): bool
+    {
+        return filter_var(env('VENTA_SIN_STOCK', true), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /** ¿El cliente está marcado "No (Exento)" de ITBMS? (sin cliente = consumidor final: sí paga) */
+    public static function clienteExento(?int $clienteId): bool
+    {
+        if (!$clienteId) return false;
+        $v = Db::value("SELECT itbms FROM clientes WHERE cliente_id = ?", [$clienteId]);
+        return $v !== null && (float) $v <= 0;
+    }
+
     /** Solo los productos con unidad de medida fraccionable (libra, kilo, galón…) admiten cantidades como 3.5. */
     public static function exigirEntera(int $productoId, float $cantidad): void
     {
@@ -415,7 +435,10 @@ final class VentaService
 
         $inv = Db::row("SELECT i.inventario_id, i.existencia, i.ultimo_costo, p.nombre FROM inventario i JOIN productos p ON p.producto_id = i.producto_id
                         WHERE i.producto_id = ? AND i.deposito_id = ? FOR UPDATE", [$productoId, $depositoId]);
-        if (!$inv || (float) $inv['existencia'] < $cantidadBase - 0.0001) {
+        if (!$inv && self::permiteSinStock()) {
+            $inv = ['inventario_id' => Db::insert('inventario', ['producto_id' => $productoId, 'deposito_id' => $depositoId, 'existencia' => 0]), 'existencia' => 0, 'ultimo_costo' => 0, 'nombre' => ''];
+        }
+        if ((!$inv || (float) $inv['existencia'] < $cantidadBase - 0.0001) && !self::permiteSinStock()) {
             $nombre = $inv['nombre'] ?? (Db::value("SELECT nombre FROM productos WHERE producto_id = ?", [$productoId]) ?? "#{$productoId}");
             throw new \RuntimeException("Stock insuficiente de \"{$nombre}\" (hay " . (float) ($inv['existencia'] ?? 0) . ', pides ' . (float) $cantidadBase . ').');
         }

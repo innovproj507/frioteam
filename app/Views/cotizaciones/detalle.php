@@ -23,6 +23,12 @@ $linkPublico = base_url('c?t=' . urlencode($cotizacion['token'] ?? ''));
 <!-- Action bar -->
 <div class="flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-2.5 mb-4">
     <div class="flex gap-2">
+        <?php if (str_starts_with((string) ($cotizacion['notas'] ?? ''), '[WEB ') && $est !== 'convertida' && \App\Libraries\Auth::can('cotizaciones.crear')): ?>
+        <a href="/ventas/cotizaciones/<?= $cotizacion['cotizacion_id'] ?>/precios"
+           class="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition shadow-sm">
+            <i class="fas fa-tags"></i> <?= $est === 'pendiente' ? 'Poner precios' : 'Cambiar precios' ?>
+        </a>
+        <?php endif; ?>
         <a href="/ventas/nueva?cotizacion_id=<?= $cotizacion['cotizacion_id'] ?>"
            class="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-semibold hover:bg-sky-600 transition shadow-sm">
             <i class="fas fa-file-invoice-dollar"></i> Facturar

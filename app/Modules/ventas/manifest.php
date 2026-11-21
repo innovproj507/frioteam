@@ -22,7 +22,15 @@ return [
             ['label' => 'Ventas en POS',          'title' => 'Lista de ventas en punto de venta',        'icon' => 'fas fa-cash-register', 'href' => '/ventas?origen=pos'],
             ['label' => 'Agregar nueva venta',    'title' => 'Crear una venta nueva (factura)',          'icon' => 'fas fa-plus-circle',   'href' => '/ventas/nueva', 'permission' => 'ventas.crear'],
          ]],
-        ['type' => 'link', 'label' => 'Cotizaciones',      'icon' => 'fas fa-file-invoice',   'href' => '/ventas/cotizaciones', 'permission' => 'cotizaciones.ver'],
+        // Menú desplegable "Cotizaciones": las del POS / sistema y las que llegan de la tienda web
+        ['type' => 'group', 'label' => 'Cotizaciones', 'icon' => 'fas fa-file-invoice',
+         'open_prefixes' => ['/ventas/cotizaciones/'],
+         'open_exact'    => ['/ventas/cotizaciones'],
+         'children' => [
+            ['label' => 'Cotizaciones POS',  'title' => 'Cotizaciones hechas en el POS y en el sistema', 'icon' => 'fas fa-cash-register', 'href' => '/ventas/cotizaciones?origen=pos', 'permission' => 'cotizaciones.ver'],
+            ['label' => 'Cotizaciones web',  'title' => 'Cotizaciones que piden los clientes en la tienda web', 'icon' => 'fas fa-globe', 'href' => '/ventas/cotizaciones?origen=web', 'permission' => 'cotizaciones.ver'],
+            ['label' => 'Nueva cotización',  'title' => 'Crear una cotización nueva', 'icon' => 'fas fa-plus-circle', 'href' => '/ventas/cotizaciones/nueva', 'permission' => 'cotizaciones.crear'],
+         ]],
         ['type' => 'link', 'label' => 'Mi Caja',           'icon' => 'fas fa-cash-register',  'href' => '/caja',   'permission' => 'caja.mi_caja'],
         ['type' => 'link', 'label' => 'Cajas (arqueos)',   'icon' => 'fas fa-scale-balanced', 'href' => '/cajas',  'permission' => 'cajas.ver'],
         // Listado de todas las entregas (despachos) que se realizan

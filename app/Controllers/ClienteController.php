@@ -77,6 +77,10 @@ class ClienteController extends BaseController
             $this->error('El nombre es requerido.');
             return redirect()->to('/clientes/nuevo');
         }
+        if ($datos['ruc'] === '') {
+            $this->error('La cédula o RUC es obligatoria.');
+            return redirect()->to('/clientes/nuevo')->withInput();
+        }
         if ($datos['codigo'] === '') {
             $datos['codigo'] = NumeracionService::siguiente('cliente', $this->empresaId());
         }

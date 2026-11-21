@@ -30,7 +30,11 @@ $routes->group('api/tienda', ['filter' => 'tiendatoken'], static function ($rout
     $routes->get('categorias', 'Api\TiendaController::categorias');
     $routes->get('catalogo', 'Api\TiendaController::catalogo');
     $routes->get('stock', 'Api\TiendaController::stock');
+    $routes->get('ranking', 'Api\TiendaController::ranking');
     $routes->post('pedidos', 'Api\TiendaController::pedido');
+    $routes->get('pedidos/estado', 'Api\TiendaController::pedidosEstado');
+    $routes->post('solicitudes', 'Api\TiendaController::solicitud');
+    $routes->get('solicitudes/estado', 'Api\TiendaController::solicitudEstado');
 });
 
 ModuleManager::loadRoutes($routes);

@@ -794,6 +794,9 @@ class VentaController extends BaseController
         if ($nombre === '') {
             return $this->json(['error' => 'El nombre es requerido'], 422);
         }
+        if (trim((string) ($data['ruc'] ?? '')) === '') {
+            return $this->json(['error' => 'La cédula o RUC es obligatoria'], 422);
+        }
 
         $codigo = trim((string) ($data['codigo'] ?? '')) ?: NumeracionService::siguiente('cliente', $this->empresaId());
 
@@ -824,7 +827,7 @@ class VentaController extends BaseController
 
         AuditService::log('clientes.crear', "Cliente creado: {$nombre}", $clienteId, 'cliente', [], $this->empresaId());
         $limite = (float) Db::value("SELECT limite_credito FROM clientes WHERE cliente_id = ?", [$clienteId]);
-        return $this->json(['success' => true, 'cliente_id' => $clienteId, 'nombre' => $nombre, 'codigo' => $codigo, 'limite_credito' => $limite]);
+        return $this->json(['success' => true, 'cliente_id' => $clienteId, 'nombre' => $nombre, 'codigo' => $codigo, 'limite_credito' => $limite, 'exento' => (($data['itbms'] ?? 'SI') === 'NO')]);
     }
 
     /** POST JSON {limite_credito} — sube/cambia el límite de crédito desde la venta (clientes.editar). */

@@ -59,6 +59,8 @@ $routes->group('', ['filter' => ['auth', 'sucursal']], static function ($routes)
     $routes->get('ventas/cotizaciones/(:num)/pdf', 'CotizacionController::descargarPdf/$1', ['filter' => 'permiso:cotizaciones.ver']);
     $routes->get('ventas/cotizaciones/(:num)/items-pos', 'CotizacionController::itemsPos/$1');
     $routes->post('ventas/cotizaciones/(:num)/convertir', 'CotizacionController::convertir/$1', ['filter' => 'permiso:ventas.crear']);
+    $routes->get('ventas/cotizaciones/(:num)/precios', 'CotizacionController::precios/$1', ['filter' => 'permiso:cotizaciones.crear']);
+    $routes->post('ventas/cotizaciones/(:num)/precios', 'CotizacionController::guardarPrecios/$1', ['filter' => 'permiso:cotizaciones.crear']);
     $routes->post('ventas/cotizaciones/(:num)/estado', 'CotizacionController::cambiarEstado/$1', ['filter' => 'permiso:cotizaciones.crear']);
 });
 

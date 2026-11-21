@@ -51,8 +51,8 @@
                             </select>
                         </div>
                         <div class="flex items-baseline gap-4 py-2">
-                            <label class="text-sm font-semibold text-gray-600 w-40 shrink-0">RUC / Cédula</label>
-                            <input type="text" name="ruc" value="<?= esc($cliente->ruc ?? '') ?>" placeholder="Ej: 8-000-000"
+                            <label class="text-sm font-semibold text-gray-600 w-40 shrink-0">RUC / Cédula <span class="text-red-500">*</span></label>
+                            <input type="text" name="ruc" required" value="<?= esc($cliente->ruc ?? '') ?>" placeholder="Ej: 8-000-000"
                                    class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none">
                         </div>
                         <div class="flex items-baseline gap-4 py-2">

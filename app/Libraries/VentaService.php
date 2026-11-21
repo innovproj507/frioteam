@@ -80,6 +80,7 @@ final class VentaService
         foreach ($items as $item) {
             $productoId = (int) $item['producto_id'];
             $cantidad   = (float) $item['cantidad'];
+            self::exigirEntera($productoId, $cantidad);
             // Sin depósito explícito se usa el activo de la sesión, para que siempre
             // se descuente stock (antes el POS web no lo enviaba y no bajaba inventario).
             $depositoId = (int) ($item['deposito_id'] ?? 0) ?: (int) ($ctx['deposito_id'] ?? 0);
@@ -339,6 +340,18 @@ final class VentaService
         if ($v['caja_id']) CajaService::refrescarCierre((int) $v['caja_id']);
 
         return ['nota' => $numeroNota, 'monto' => $monto, 'a_credito' => $aCredito, 'reembolso' => $devolver, 'forma' => $forma, 'numero_factura' => (string) $v['numero_factura'], 'descripcion' => $descripcion];
+    }
+
+    /** Solo los productos con unidad de medida fraccionable (libra, kilo, galón…) admiten cantidades como 3.5. */
+    public static function exigirEntera(int $productoId, float $cantidad): void
+    {
+        if (abs($cantidad - round($cantidad)) < 0.0001) {
+            return;
+        }
+        $fila = Db::row("SELECT nombre, unidad_medida FROM productos WHERE producto_id = ?", [$productoId]);
+        if ($fila && !(ProductoService::UNIDADES_MEDIDA[ProductoService::unidadMedida($fila['unidad_medida'])][2] ?? false)) {
+            throw new \RuntimeException('"' . $fila['nombre'] . '" se vende por unidades enteras (no admite decimales).');
+        }
     }
 
     /** Vuelto entregado en efectivo por un pago de más con Yappy / transferencia (salida de caja de la venta). */

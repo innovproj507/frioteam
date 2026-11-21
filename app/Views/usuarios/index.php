@@ -38,7 +38,7 @@
         'supervisor' => 'Supervisor',
         'auditor'    => 'Auditor',
         'cajero'     => 'Cajero',
-        'vendedor'   => 'Vendedor (celular)',
+        'vendedor'   => 'Vendedor',
         'encargado'  => 'Encargado de tienda',
     ];
     ?>

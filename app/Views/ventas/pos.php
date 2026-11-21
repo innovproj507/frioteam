@@ -297,7 +297,7 @@
                                         <th class="px-3 py-3 text-left text-xs font-bold text-white">Código</th>
                                         <th class="px-3 py-3 text-left text-xs font-bold text-white">Descripción</th>
                                         <th class="px-3 py-3 text-center text-xs font-bold text-white">Cantidad</th>
-                                        <th class="px-3 py-3 text-center text-xs font-bold text-white">Precio(A)</th>
+                                        <?php if (\App\Libraries\Auth::can('productos.ver_precio_a')): ?><th class="px-3 py-3 text-center text-xs font-bold text-white">Precio(A)</th><?php endif; ?>
                                         <th class="px-3 py-3 text-center text-xs font-bold text-white">Precio(B)</th>
                                         <th class="px-3 py-3 text-center text-xs font-bold text-white">Precio(C)</th>
                                         <th class="px-3 py-3 text-center text-xs font-bold text-white">Imagen</th>
@@ -595,6 +595,14 @@
         const resultadosPorPagina = 5;
         const TASA_ITBMS = <?= json_encode(tasa_itbms()) ?>;
         const MAX_DESCUENTO_PCT = <?= (int)($max_descuento_pct ?? 10) ?>;
+        // El vendedor no ve el Precio(A): solo B y C
+        const VER_PRECIO_A = <?= \App\Libraries\Auth::can('productos.ver_precio_a') ? 'true' : 'false' ?>;
+        /** [precio, tipo] de una presentación (caja, docena…): A si puede verlo; si no, el C (o el B). */
+        function precioPresentacion(u, prA) {
+            if (VER_PRECIO_A) return [parseFloat(u.precio_a || 0) || prA * parseFloat(u.factor_conversion), 'a'];
+            const c = parseFloat(u.precio_c || 0), b = parseFloat(u.precio_b || 0);
+            return c > 0 ? [c, 'c'] : [b, 'b'];
+        }
         let elementosDOM = {};
         let pagos = [{ forma_pago: 'EFECTIVO', monto: 0 }];
         let creditoCliente = null;
@@ -695,6 +703,26 @@
             } catch (e) { carrito = []; }
             // Siempre dibuja la tabla: así la fila de entrada de código existe aunque no haya carrito guardado
             actualizarTabla();
+            refrescarDecimalesCarrito();
+        }
+
+        // Un carrito guardado en el navegador puede venir de antes de que el producto se vendiera por decimales
+        // (o sin esa marca): se vuelve a preguntar al servidor, una vez por producto, y se actualiza la línea.
+        async function refrescarDecimalesCarrito() {
+            const pendientes = carrito.filter(it => typeof it.permite_decimal === 'undefined' || !it.permite_decimal);
+            if (!pendientes.length) return;
+            let cambio = false;
+            for (const it of pendientes) {
+                try {
+                    const r = await fetch('/api/productos/buscar?q=' + encodeURIComponent(it.codigo));
+                    const d = await r.json();
+                    const prod = (d.productos || []).find(x => String(x.codigo) === String(it.codigo)) || (d.productos || [])[0];
+                    if (!prod) continue;
+                    const dec = prod.permite_decimal == 1;
+                    if (dec !== !!it.permite_decimal) { it.permite_decimal = dec; cambio = true; }
+                } catch (e) { /* sin conexión: se queda como estaba */ }
+            }
+            if (cambio) actualizarTabla();
         }
         function guardarCarritoLocal() {
             localStorage.setItem('pos_cart', JSON.stringify(carrito));
@@ -818,10 +846,11 @@
         /** Precio y presentación de un resultado: si se escaneó el código de una caja/paca, esa presentación. */
         function lineaEscaneada(p) {
             const u = p.unidad_escaneada ? (p.unidades || []).find(x => parseInt(x.unidad_id, 10) === parseInt(p.unidad_escaneada, 10)) : null;
-            if (u) return [parseFloat(u.precio_a) || 0, parseInt(u.unidad_id, 10), u.nombre, 'a'];
-            // Precio por defecto: el Precio(C); si el producto no lo tiene, el Precio(A)
+            if (u) { const [up, ut] = precioPresentacion(u, parseFloat(p.precio_a) || 0); return [up, parseInt(u.unidad_id, 10), u.nombre, ut]; }
+            // Precio por defecto: el Precio(C); si el producto no lo tiene, el Precio(A) (el vendedor, el Precio(B))
             const pc = parseFloat(p.precio_c) || 0;
-            return pc > 0 ? [pc, null, 'Unid.', 'c'] : [parseFloat(p.precio_a) || 0, null, 'Unid.', 'a'];
+            if (pc > 0) return [pc, null, 'Unid.', 'c'];
+            return VER_PRECIO_A ? [parseFloat(p.precio_a) || 0, null, 'Unid.', 'a'] : [parseFloat(p.precio_b) || 0, null, 'Unid.', 'b'];
         }
 
         function buscarProductos(q) {
@@ -869,7 +898,7 @@
             const pagina = resultadosBusqueda.slice(inicio, fin);
 
             if (pagina.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500">Sin resultados</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${VER_PRECIO_A ? 9 : 8}" class="p-4 text-center text-gray-500">Sin resultados</td></tr>`;
             } else {
                 const btnPrecio = (id, tipo, valor, color) =>
                     `<button onclick="seleccionarYAgregar(${id}, '${tipo}', ${valor}, null, 'Unid.')" class="block w-full h-12 ${color} text-white text-sm font-bold rounded transition-colors">$${valor.toFixed(2)}</button>`;
@@ -889,8 +918,8 @@
                     if (unidades.length) {
                         presentaciones = '<div class="flex flex-wrap gap-1 mt-1">';
                         unidades.forEach(u => {
-                            const uPrecio = parseFloat(u.precio_a || 0) || prA * parseFloat(u.factor_conversion);
-                            presentaciones += `<button onclick="seleccionarYAgregar(${parseInt(p.producto_id, 10)}, 'a', ${Number(uPrecio)}, ${parseInt(u.unidad_id, 10)}, ${escAttrJs(u.nombre)})" class="px-2 py-0.5 bg-sky-700 hover:bg-sky-800 text-white text-[11px] font-bold rounded transition-colors" title="Agregar por ${escHtml(u.nombre)}">${escHtml(u.nombre)} $${uPrecio.toFixed(2)}</button>`;
+                            const [uPrecio, uTipo] = precioPresentacion(u, prA);
+                            presentaciones += `<button onclick="seleccionarYAgregar(${parseInt(p.producto_id, 10)}, '${uTipo}', ${Number(uPrecio)}, ${parseInt(u.unidad_id, 10)}, ${escAttrJs(u.nombre)})" class="px-2 py-0.5 bg-sky-700 hover:bg-sky-800 text-white text-[11px] font-bold rounded transition-colors" title="Agregar por ${escHtml(u.nombre)}">${escHtml(u.nombre)} $${uPrecio.toFixed(2)}</button>`;
                         });
                         presentaciones += '</div>';
                     }
@@ -908,7 +937,7 @@
                             ${presentaciones}
                         </td>
                         <td class="px-3 py-0.5 text-center text-sm font-semibold ${stock > 0 ? 'text-gray-700' : 'text-red-500'}">${stockTxt}</td>
-                        <td class="px-1 py-0.5 text-center">${btnPrecio(parseInt(p.producto_id, 10), 'a', prA, 'bg-blue-600 hover:bg-blue-700')}</td>
+                        ${VER_PRECIO_A ? `<td class="px-1 py-0.5 text-center">${btnPrecio(parseInt(p.producto_id, 10), 'a', prA, 'bg-blue-600 hover:bg-blue-700')}</td>` : ''}
                         <td class="px-1 py-0.5 text-center">${prB > 0 ? btnPrecio(parseInt(p.producto_id, 10), 'b', prB, 'bg-green-600 hover:bg-green-700') : sinPrecio}</td>
                         <td class="px-1 py-0.5 text-center">${prC > 0 ? btnPrecio(parseInt(p.producto_id, 10), 'c', prC, 'bg-amber-500 hover:bg-amber-600') : sinPrecio}</td>
                         <td class="px-3 py-0.5 text-center"><img src="${escHtml(imgUrl)}" data-nombre="${escHtml(p.nombre)}" data-codigo="${escHtml(p.codigo)}" onclick="abrirFoto(this)" title="Clic para ampliar la foto" onerror="this.onerror=null;this.src='/assets/img/no-image.svg'" class="object-cover rounded shadow-sm border border-gray-200 mx-auto cursor-zoom-in hover:ring-2 hover:ring-sky-400 transition" style="width:64px;min-width:64px;height:48px;box-sizing:border-box"></td>
@@ -993,7 +1022,7 @@
             // Si el producto ya está en el carrito (misma presentación), se suma la cantidad a esa línea, sea cual sea el precio elegido
             const index = carrito.findIndex(item => item.id == p.producto_id && item.unidad_id == unidadId);
             if (index !== -1) {
-                carrito[index].cantidad++;
+                carrito[index].cantidad = Math.round((parseFloat(carrito[index].cantidad) + 1) * 100) / 100;
             } else {
                 carrito.push({
                     id: p.producto_id,
@@ -1009,6 +1038,7 @@
                     unidad_id: unidadId,
                     presentacion: presentacion,
                     um: unidadId ? 'und' : (p.unidad_medida || 'und'),
+                    permite_decimal: p.permite_decimal == 1,
                     aplica_itbms: p.itbms == 1
                 });
             }
@@ -1057,8 +1087,10 @@
                 unidad_id: unidadId,
                 presentacion: presentacion,
                 um: unidadId ? 'und' : (p.unidad_medida || 'und'),
+                permite_decimal: p.permite_decimal == 1,
                 aplica_itbms: p.itbms == 1
             };
+            if (!carrito[i].permite_decimal) carrito[i].cantidad = Math.max(1, Math.round(carrito[i].cantidad));
             filaEditando = null;
             actualizarTabla();
         }
@@ -1083,7 +1115,7 @@
                         <span class="text-sm font-normal text-gray-900 line-clamp-1">${escHtml(item.nombre)}${item.presentacion && item.presentacion !== 'Unid.' ? ' <span class="text-[11px] text-sky-600 font-semibold">(' + escHtml(item.presentacion) + ')</span>' : ''}</span>
                     </td>
                     <td class="px-3 py-0.5 text-center whitespace-nowrap">
-                        <button type="button" onclick="editarPrecioFila(${i})" class="w-6 h-6 mr-1 rounded text-sky-600 hover:text-white hover:bg-sky-500 transition-colors align-middle" title="Ver y elegir otro precio (A, B o C)"><i class="fas fa-pen-to-square text-xs"></i></button><input type="text" inputmode="numeric" autocomplete="off" value="${Math.round(item.cantidad)}" class="w-14 h-6 text-center border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos" onfocus="this.select()" oninput="soloEntero(this)" onchange="cambiarCantidad(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
+                        <button type="button" onclick="editarPrecioFila(${i})" class="w-6 h-6 mr-1 rounded text-sky-600 hover:text-white hover:bg-sky-500 transition-colors align-middle" title="Ver y elegir otro precio (A, B o C)"><i class="fas fa-pen-to-square text-xs"></i></button><input type="text" inputmode="${item.permite_decimal ? 'decimal' : 'numeric'}" autocomplete="off" value="${fmtCant(item.cantidad)}" class="w-16 h-6 text-center border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos" onfocus="this.select()" oninput="soloCantidad(this, ${item.permite_decimal ? 1 : 0})" onchange="cambiarCantidad(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
                     </td>
                     <td class="px-3 py-0.5 text-center">
                         <input type="text" inputmode="decimal" autocomplete="off" value="${item.precio.toFixed(2)}" class="w-20 h-6 text-right border border-gray-300 rounded text-xs py-0 focus:outline-none focus:border-pos bg-gray-50" onfocus="this.select()" oninput="soloDecimal2(this)" onchange="cambiarPrecio(${i}, this.value)" onkeyup="if(event.key==='Enter') this.blur();">
@@ -1162,6 +1194,18 @@
         function soloEntero(el) {
             el.value = el.value.replace(/\D/g, '').slice(0, 6);
         }
+        // Cantidad: número con hasta 2 decimales (se vende gas por libras: 3.5)
+        function soloCantidad(el, decimal) {
+            if (!decimal) { el.value = el.value.replace(/\D/g, '').slice(0, 6); return; }   // producto de unidades: solo enteros
+            let v = el.value.replace(',', '.').replace(/[^0-9.]/g, '');
+            const p = v.indexOf('.');
+            if (p !== -1) v = v.slice(0, p + 1) + v.slice(p + 1).replace(/\./g, '').slice(0, 2);
+            el.value = v.slice(0, 9);
+        }
+        // 3 -> "3", 3.5 -> "3.5", 3.25 -> "3.25"
+        function fmtCant(n) {
+            return String(Math.round((parseFloat(n) || 0) * 100) / 100);
+        }
         function soloDecimal2(el) {
             let v = el.value.replace(',', '.').replace(/[^0-9.]/g, '');
             const p = v.indexOf('.');
@@ -1170,9 +1214,10 @@
         }
 
         function cambiarCantidad(i, v) {
-            const n = parseInt(v, 10);
+            let n = Math.round(parseFloat(String(v).replace(',', '.')) * 100) / 100;
+            if (carrito[i] && !carrito[i].permite_decimal) n = Math.round(n);   // solo los productos por libra admiten decimales
             // Vacío o 0: se conserva la cantidad que tenía (para quitar la línea está el basurero)
-            if (!n || n < 1) { actualizarTabla(); return; }
+            if (!n || n < (carrito[i] && carrito[i].permite_decimal ? 0.01 : 1)) { actualizarTabla(); return; }
             carrito[i].cantidad = n;
             actualizarTabla();
         }
@@ -1580,6 +1625,7 @@
                         descuento_pct: 0,
                         unidad_id:    null,
                         presentacion: 'Unid.',
+                        permite_decimal: item.permite_decimal == 1,
                         aplica_itbms: item.aplica_itbms == 1
                     };
                 });

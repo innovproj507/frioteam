@@ -95,11 +95,28 @@ class ImpresoraRed
             return null;
         }
         $v['items'] = Db::all(
-            "SELECT p.nombre, p.codigo, d.cantidad, d.unidad_nombre, d.precio, d.descuento, d.total_linea
+            "SELECT p.nombre, p.codigo, d.cantidad, d.cantidad_devuelta, d.unidad_nombre, d.precio, d.descuento, d.total_linea
              FROM ventas_detalle d JOIN productos p ON p.producto_id = d.producto_id
              WHERE d.venta_id = ? ORDER BY d.detalle_id",
             [$ventaId]
         );
+        // Devoluciones aplicadas: se imprime la cantidad que quedó (vendida − devuelta); lo devuelto por completo no sale
+        $filas = [];
+        foreach ($v['items'] as $it) {
+            $dev = (float) ($it['cantidad_devuelta'] ?? 0);
+            if ($dev > 0) {
+                $quedan = round((float) $it['cantidad'] - $dev, 2);
+                if ($quedan <= 0) {
+                    continue;
+                }
+                $it['total_linea'] = round((float) $it['total_linea'] * $quedan / max(0.0001, (float) $it['cantidad']), 2);
+                $it['descuento']   = round((float) $it['descuento'] * $quedan / max(0.0001, (float) $it['cantidad']), 2);
+                $it['nota_dev']    = rtrim(rtrim(number_format((float) $it['cantidad'], 2, '.', ''), '0'), '.') . ' vend. - ' . rtrim(rtrim(number_format($dev, 2, '.', ''), '0'), '.') . ' dev.';
+                $it['cantidad']    = $quedan;
+            }
+            $filas[] = $it;
+        }
+        $v['items'] = $filas;
         $v['pagos']  = Db::all("SELECT forma_pago, monto, referencia FROM ventas_pagos WHERE venta_id = ? ORDER BY pago_id", [$ventaId]);
         $v['vuelto'] = VentaService::vueltoEfectivo((string) $v['numero_factura'], $v['caja_id'] ? (int) $v['caja_id'] : null);
 
@@ -162,6 +179,9 @@ class ImpresoraRed
             $pres = !empty($it['unidad_nombre']) ? ' ' . self::ascii((string) $it['unidad_nombre']) : '';
             $izq  = $cant . $pres . ' x ' . number_format((float) $it['precio'], 2);
             $out .= self::dosColumnas($izq, number_format((float) $it['total_linea'], 2), $cols);
+            if (!empty($it['nota_dev'])) {
+                $out .= self::lineas('  (' . $it['nota_dev'] . ')', $cols);
+            }
             if ((float) $it['descuento'] > 0.005) {
                 $out .= self::dosColumnas('  Descuento', '-' . number_format((float) $it['descuento'], 2), $cols);
             }

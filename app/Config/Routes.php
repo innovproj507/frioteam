@@ -25,4 +25,12 @@ $routes->get('api/v1', 'Api\ApiAuthController::estado');
 $routes->post('api/v1/login', 'Api\ApiAuthController::login');
 $routes->post('api/v1/logout', 'Api\ApiAuthController::logout');
 
+// API de la tienda en línea (token servidor a servidor TIENDA_TOKEN)
+$routes->group('api/tienda', ['filter' => 'tiendatoken'], static function ($routes) {
+    $routes->get('categorias', 'Api\TiendaController::categorias');
+    $routes->get('catalogo', 'Api\TiendaController::catalogo');
+    $routes->get('stock', 'Api\TiendaController::stock');
+    $routes->post('pedidos', 'Api\TiendaController::pedido');
+});
+
 ModuleManager::loadRoutes($routes);

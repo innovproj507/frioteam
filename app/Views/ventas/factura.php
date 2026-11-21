@@ -75,7 +75,14 @@ $emitidoPor = trim((string) ($venta['vendedor_nombre'] ?? '')) ?: (string) ($ven
 <?php if ($modo === 'web'): ?>
 <div class="barra">
     <button onclick="window.print()">Imprimir</button>
-    <a href="/ventas/venta/<?= (int) $venta['venta_id'] ?>/factura/pdf">Descargar PDF</a>
+    <a href="/ventas/venta/<?= (int) $venta['venta_id'] ?>/factura/pdf<?= (!empty($devoluciones) && empty($ajustada)) ? '?original=1' : '' ?>">Descargar PDF</a>
+    <?php if (!empty($devoluciones)): ?>
+        <?php if (!empty($ajustada)): ?>
+            <a href="/ventas/venta/<?= (int) $venta['venta_id'] ?>/factura?original=1">Ver factura original</a>
+        <?php else: ?>
+            <a href="/ventas/venta/<?= (int) $venta['venta_id'] ?>/factura">Ver con devoluciones</a>
+        <?php endif; ?>
+    <?php endif; ?>
     <a href="/ventas/venta/<?= (int) $venta['venta_id'] ?>">Volver a la venta</a>
 </div>
 <?php endif; ?>
@@ -91,7 +98,7 @@ $emitidoPor = trim((string) ($venta['vendedor_nombre'] ?? '')) ?: (string) ($ven
                 <?php if ($direccion !== ''): ?><p><?= esc($direccion) ?></p><?php endif; ?>
                 <p style="margin-top: 8px;">
                     <?php if ($tel !== ''): ?>Tel: <?= esc($tel) ?><br><?php endif; ?>
-                    <?php if ($cel !== ''): ?>Cel. <?= esc($cel) ?><br>Whatsapp: <?= esc($cel) ?><br><?php endif; ?>
+                    <?php if ($cel !== ''): ?>Whatsapp: <?= esc($cel) ?><br><?php endif; ?>
                     <?php if ($correo !== ''): ?>Email: <?= esc($correo) ?><br><?php endif; ?>
                     <?php if ($web !== ''): ?>Web: <?= esc($web) ?><br><?php endif; ?>
                     <?php if ($ruc !== ''): ?><b>RUC: <?= esc($ruc) ?></b><?php endif; ?>
@@ -112,7 +119,9 @@ $emitidoPor = trim((string) ($venta['vendedor_nombre'] ?? '')) ?: (string) ($ven
 
     <table class="sin-borde" style="margin: 18px 0 10px 0;">
         <tr>
-            <td style="width: 50%;"><h3 style="font-size: 16px;">Factura No. <?= esc($venta['numero_factura']) ?></h3></td>
+            <td style="width: 50%;"><h3 style="font-size: 16px;">Factura No. <?= esc($venta['numero_factura']) ?></h3>
+                <?php if (!empty($ajustada)): ?><p style="font-weight: bold; color: #b91c1c; font-size: 11px;">CON DEVOLUCIONES APLICADAS</p>
+                <?php elseif (!empty($devoluciones)): ?><p style="font-weight: bold; color: #475569; font-size: 11px;">FACTURA ORIGINAL (antes de devoluciones)</p><?php endif; ?></td>
             <td style="width: 50%;">
                 <p style="font-weight: bold;">Fecha: <?= date('d/m/Y', strtotime((string) $venta['fecha'])) ?></p>
                 <p style="font-weight: bold;">Hora: <?= date('H:i:s', strtotime((string) $venta['fecha'])) ?></p>
@@ -143,7 +152,8 @@ $emitidoPor = trim((string) ($venta['vendedor_nombre'] ?? '')) ?: (string) ($ven
                 </td>
                 <td class="cen" style="font-size: 10px;"><?= esc((string) $it['codigo']) ?></td>
                 <td><?= esc($it['nombre']) ?></td>
-                <td class="cen"><?= esc(rtrim(rtrim(number_format((float) $it['cantidad'], 2, '.', ''), '0'), '.')) ?><?= !empty($it['unidad_nombre']) ? ' ' . esc($it['unidad_nombre']) : '' ?></td>
+                <td class="cen"><?= esc(rtrim(rtrim(number_format((float) $it['cantidad'], 2, '.', ''), '0'), '.')) ?><?= !empty($it['unidad_nombre']) ? ' ' . esc($it['unidad_nombre']) : '' ?>
+                    <?php if (!empty($ajustada) && (float) ($it['cantidad_devuelta'] ?? 0) > 0): ?><br><span style="font-size: 9px; color: #b91c1c;">(<?= esc(rtrim(rtrim(number_format((float) $it['cantidad_vendida'], 2, '.', ''), '0'), '.')) ?> vendidas, <?= esc(rtrim(rtrim(number_format((float) $it['cantidad_devuelta'], 2, '.', ''), '0'), '.')) ?> devuelta)</span><?php endif; ?></td>
                 <td class="der"><?= $dinero($it['precio']) ?></td>
                 <td class="der"><?= $dinero($it['subtotal']) ?></td>
             </tr>
@@ -159,6 +169,20 @@ $emitidoPor = trim((string) ($venta['vendedor_nombre'] ?? '')) ?: (string) ($ven
         <tr><td class="etq">ITBMS (USD)</td><td class="der"><?= $dinero($venta['itbms']) ?></td></tr>
         <tr class="final"><td class="etq">Total a pagar (USD)</td><td class="der"><?= $dinero($venta['total']) ?></td></tr>
     </table>
+
+    <?php if (!empty($ajustada)): ?>
+        <table class="items" style="margin-top: 12px;">
+            <tr><th colspan="3" style="text-align: left; background: #fef2f2; color: #991b1b;">Devoluciones aplicadas a esta factura</th></tr>
+            <?php foreach ($devoluciones as $dv): ?>
+            <tr>
+                <td style="width: 110px;"><?= esc((string) $dv['nota']) ?></td>
+                <td><?= esc(rtrim(rtrim(number_format((float) $dv['cantidad'], 2, '.', ''), '0'), '.')) ?> × <?= esc($dv['producto']) ?> (<?= date('d/m/Y', strtotime((string) $dv['fecha'])) ?>)</td>
+                <td class="der" style="width: 90px; color: #b91c1c;">-<?= $dinero($dv['monto']) ?></td>
+            </tr>
+            <?php endforeach; ?>
+            <tr><td colspan="2" class="der" style="font-size: 10px; color: #475569;">Factura original: Total a pagar (USD)</td><td class="der" style="font-size: 10px; color: #475569;"><?= $dinero($totales_originales['total']) ?></td></tr>
+        </table>
+    <?php endif; ?>
 
     <?php if ($nota !== ''): ?>
         <p style="margin-top: 16px; font-weight: bold; font-size: 12px;">Nota:</p>

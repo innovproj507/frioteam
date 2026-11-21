@@ -49,6 +49,7 @@ final class CotizacionService
         ]);
 
         foreach ($items as $item) {
+            VentaService::exigirEntera((int) $item['producto_id'], (float) $item['cantidad']);
             $totalLinea = ((float) $item['cantidad'] * (float) $item['precio']) - (float) ($item['descuento'] ?? 0);
             $itbmsLinea = $totalLinea * $itbmsRate;
             $subtotal  += $totalLinea;

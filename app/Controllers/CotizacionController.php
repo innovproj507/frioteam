@@ -278,7 +278,7 @@ class CotizacionController extends BaseController
         return $this->json([
             'cotizacion' => $cotizacion,
             'items'      => Db::all(
-                "SELECT d.producto_id, d.cantidad, d.precio, d.descuento, p.codigo, p.nombre, p.itbms AS aplica_itbms,
+                "SELECT d.producto_id, d.cantidad, d.precio, d.descuento, p.codigo, p.nombre, p.itbms AS aplica_itbms, (p.unidad_medida IS NOT NULL AND p.unidad_medida NOT IN ('', 'und')) AS permite_decimal,
                         (SELECT i.ubicacion FROM inventario i WHERE i.producto_id = d.producto_id AND i.deposito_id = {$dep1} LIMIT 1) AS ubic1,
                         (SELECT i.ubicacion FROM inventario i WHERE i.producto_id = d.producto_id AND i.deposito_id = {$dep2} LIMIT 1) AS ubic2
                  FROM cotizaciones_detalle d

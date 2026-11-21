@@ -76,7 +76,7 @@ $title = $isEdit ? esc(trim(($usuario->first_name ?? '') . ' ' . ($usuario->last
                     <label class="text-sm font-semibold text-gray-600 w-40 shrink-0">Rol *</label>
                     <select name="rol" required class="flex-1 py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
                         <?php foreach ($roles ?? ['vendedor','encargado','cajero','supervisor','gerente','auditor','superadmin'] as $r): ?>
-                            <option value="<?= $r ?>" <?= ($usuario->rol ?? '') === $r ? 'selected' : '' ?>><?= ['vendedor' => 'Vendedor (solo celular)', 'encargado' => 'Encargado de tienda'][$r] ?? ucfirst($r) ?></option>
+                            <option value="<?= $r ?>" <?= ($usuario->rol ?? '') === $r ? 'selected' : '' ?>><?= ['vendedor' => 'Vendedor', 'encargado' => 'Encargado de tienda'][$r] ?? ucfirst($r) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>

@@ -196,7 +196,7 @@ class VentaController extends BaseController
     public function factura(int $id)
     {
         if ($this->ventaSoloNormales($id)) { $this->error('No tienes permiso para ver esa venta.'); return redirect()->to('/ventas'); }
-        $datos = \App\Libraries\FacturaVenta::datos($id, $this->sucursalId());
+        $datos = \App\Libraries\FacturaVenta::datos($id, $this->sucursalId(), (bool) $this->request->getGet('original'));
         if (!$datos) {
             $this->error('Venta no encontrada.');
             return redirect()->to('/ventas');
@@ -208,7 +208,7 @@ class VentaController extends BaseController
     public function facturaPdf(int $id)
     {
         if ($this->ventaSoloNormales($id)) { $this->error('No tienes permiso para ver esa venta.'); return redirect()->to('/ventas'); }
-        $datos = \App\Libraries\FacturaVenta::datos($id, $this->sucursalId());
+        $datos = \App\Libraries\FacturaVenta::datos($id, $this->sucursalId(), (bool) $this->request->getGet('original'));
         if (!$datos) {
             $this->error('Venta no encontrada.');
             return redirect()->to('/ventas');
@@ -686,7 +686,7 @@ class VentaController extends BaseController
         $dep2 = (int) ($deps[1]['deposito_id'] ?? 0);
 
         $base = "SELECT p.producto_id, p.codigo, p.nombre, p.codigo_barras, p.supplier_part_no, p.itbms, p.unidad_medida, {$costo}
-                        p.maneja_lotes, p.imagen_principal, p.marca AS lugar2,
+                        p.maneja_lotes, (p.unidad_medida IS NOT NULL AND p.unidad_medida NOT IN ('', 'und')) AS permite_decimal, p.imagen_principal, p.marca AS lugar2,
                         (SELECT i.ubicacion FROM inventario i WHERE i.producto_id = p.producto_id AND i.deposito_id = {$dep1} LIMIT 1) AS ubic1,
                         (SELECT i.ubicacion FROM inventario i WHERE i.producto_id = p.producto_id AND i.deposito_id = {$dep2} LIMIT 1) AS ubic2,
                         (SELECT d.nombre FROM inventario i
@@ -743,9 +743,17 @@ class VentaController extends BaseController
             $productos = Db::all($base . " AND (p.codigo_barras LIKE ? OR p.codigo LIKE ? OR p.supplier_part_no LIKE ? OR ({$condNombre})) LIMIT 100", $params);
         }
 
+        $verA = \App\Libraries\Auth::can('productos.ver_precio_a');
         foreach ($productos as &$p) {
             $p['unidades'] = \App\Libraries\PrecioTienda::unidades((int) $p['producto_id'], $s, 'u.unidad_id');
             if ($unidadEscaneada) $p['unidad_escaneada'] = $unidadEscaneada;
+            if (!$verA) {
+                $p['precio_a'] = 0;
+                foreach ($p['unidades'] as &$u) {
+                    $u['precio_a'] = 0;
+                }
+                unset($u);
+            }
         }
         unset($p);
 

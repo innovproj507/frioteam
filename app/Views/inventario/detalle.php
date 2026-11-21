@@ -46,7 +46,9 @@ $campo  = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white f
     <div class="flex gap-2">
         <a href="/inventario" class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">Lista de productos</a>
         <a href="/m/etiquetas?p=<?= (int) $id ?>:1" target="_blank" class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50" title="Etiqueta con código de barras y precio (58 mm)"><i class="fas fa-tag"></i> Etiqueta</a>
+        <?php if (\App\Libraries\Auth::can('productos.editar')): ?>
         <a href="/inventario/<?= $id ?>/editar" class="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-semibold hover:bg-sky-600 shadow-sm"><i class="fas fa-pen-to-square"></i> Editar</a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -167,12 +169,15 @@ $campo  = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white f
         <!-- Accesos -->
         <div class="col-span-full flex flex-wrap gap-2">
             <a href="/inventario/kardex?producto_id=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"><i class="fas fa-clock-rotate-left"></i> Historial de movimientos</a>
+            <?php if (\App\Libraries\Auth::can('productos.editar')): ?>
             <a href="/inventario/<?= $id ?>/precios" class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"><i class="fas fa-tag"></i> Precio</a>
+            <?php endif; ?>
             <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"><i class="fas fa-print"></i> Imprimir</button>
         </div>
     </div>
 </div>
 
+<?php if (\App\Libraries\Auth::can('inventario.ajustar')): ?>
 <!-- Agregar stock (mismo formulario de siempre) -->
 <div id="agregar-stock" class="bg-white rounded-2xl border border-gray-100 shadow-sm mb-4 print:hidden">
     <div class="border-b border-gray-100 px-4 sm:px-6 py-3"><h2 class="text-sm font-semibold text-gray-900">Agregar stock</h2></div>
@@ -213,6 +218,7 @@ $campo  = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white f
         </button>
     </form>
 </div>
+<?php endif; ?>
 
 <?php if (\App\Libraries\Auth::can('inventario.ajustar') && empty($producto->maneja_lotes)): ?>
 <!-- Sacar stock sin venta: consumo de ayudantes / dueño, uso local, merma -->

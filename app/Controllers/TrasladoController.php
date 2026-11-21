@@ -16,8 +16,14 @@ use App\Libraries\TrasladoService;
  */
 class TrasladoController extends BaseController
 {
-    public function index(): string
+    public function index()
     {
+        // Quien puede crear traslados entra directo a "Nuevo traslado"; el listado queda en ?lista=1
+        // (tras enviar la mercancía, Cancelar, o al filtrar / paginar, que llevan parámetros).
+        if (empty($this->request->getGet()) && \App\Libraries\Auth::can('traslados.crear')) {
+            return redirect()->to('/inventario/traslados/nuevo');
+        }
+
         $sucursalId = $this->sucursalId();
         $buscar     = trim((string) ($this->request->getGet('buscar') ?? ''));
         $porPagina  = in_array((int) $this->request->getGet('por_pagina'), [10, 25, 50, 100], true) ? (int) $this->request->getGet('por_pagina') : 25;
@@ -85,22 +91,34 @@ class TrasladoController extends BaseController
     {
         $data = $this->jsonInput();
 
+        // La referencia se guarda al inicio de las notas; "completado" recibe el traslado en el destino en el mismo paso
+        $referencia = trim((string) ($data['referencia'] ?? ''));
+        $notas      = trim((string) ($data['notas'] ?? ''));
+        if ($referencia !== '') {
+            $notas = trim('Ref: ' . $referencia . ($notas !== '' ? ' — ' . $notas : ''));
+        }
+        $completado = !empty($data['completado']);
+        $ctx        = ['empresa_id' => $this->empresaId(), 'sucursal_id' => $this->sucursalId()];
+
         try {
             Db::begin();
             $trasladoId = TrasladoService::enviar(
                 (int) ($data['origen_id'] ?? 0),
                 (int) ($data['destino_id'] ?? 0),
                 $data['items'] ?? [],
-                (string) ($data['notas'] ?? ''),
-                ['empresa_id' => $this->empresaId(), 'sucursal_id' => $this->sucursalId()]
+                $notas,
+                $ctx
             );
+            if ($completado) {
+                TrasladoService::recibir($trasladoId, $ctx);
+            }
             Db::commit();
         } catch (\Throwable $e) {
             Db::rollback();
             return $this->json(['error' => $e instanceof \RuntimeException ? $e->getMessage() : 'No se pudo registrar el traslado.'], 422);
         }
 
-        AuditService::log('inventario.traslado', "Traslado #{$trasladoId} enviado", $trasladoId, 'traslado', [], $this->empresaId());
+        AuditService::log('inventario.traslado', "Traslado #{$trasladoId} enviado" . ($completado ? ' y recibido (completado)' : ''), $trasladoId, 'traslado', [], $this->empresaId());
         return $this->json(['success' => true, 'traslado_id' => $trasladoId]);
     }
 

@@ -79,7 +79,7 @@
                 <?php endif; ?>
             </span>
             <?php if (!empty($buscar)): ?>
-            <a href="/inventario/traslados"
+            <a href="/inventario/traslados?lista=1"
                 class="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 text-gray-400 rounded-lg text-sm hover:bg-gray-50 transition"
                 title="Limpiar búsqueda">
                 <i class="fas fa-times"></i>
@@ -193,7 +193,7 @@
                             Crear el primer traslado
                         </a>
                         <?php else: ?>
-                        <a href="/inventario/traslados" class="mt-1 text-gray-400 hover:text-sky-500 text-xs">
+                        <a href="/inventario/traslados?lista=1" class="mt-1 text-gray-400 hover:text-sky-500 text-xs">
                             Limpiar búsqueda
                         </a>
                         <?php endif; ?>

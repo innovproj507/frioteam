@@ -89,6 +89,16 @@ $bc = match($venta['estado']) {
            class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
             <i class="fas fa-file-pdf"></i> PDF
         </a>
+        <?php if (!empty($devoluciones)): ?>
+        <a href="/ventas/venta/<?= (int) $venta['venta_id'] ?>/factura?original=1" target="_blank" title="La factura tal como se emitió, antes de las devoluciones"
+           class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+            <i class="fas fa-file-invoice"></i> Factura original
+        </a>
+        <a href="/ventas/venta/<?= (int) $venta['venta_id'] ?>/factura/pdf?original=1" title="PDF de la factura original"
+           class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+            <i class="fas fa-file-pdf"></i> PDF original
+        </a>
+        <?php endif; ?>
         <?php
         // Producto que se quedó fuera: solo facturas de hoy, no anuladas, sin abonos, quien puede anular ventas
         $puedeAgregar = $venta['estado'] !== 'anulada' && \App\Libraries\Auth::can('ventas.anular')
@@ -230,8 +240,8 @@ $bc = match($venta['estado']) {
                 $quedan   = round((float) $d['cantidad'] - $devuelta, 2); ?>
             <tr class="hover:bg-gray-50/50 transition-colors <?= $quedan <= 0 ? 'opacity-60' : '' ?>">
                 <td class="px-6 py-3">
-                    <span class="text-gray-400 text-xs mr-2 font-mono"><?= esc($d['producto_codigo']) ?></span>
-                    <span class="font-medium text-gray-800 <?= $quedan <= 0 ? 'line-through' : '' ?>"><?= esc($d['producto_nombre']) ?></span>
+                    <span class="text-base font-bold text-gray-900 mr-3 font-mono"><?= esc($d['producto_codigo']) ?></span>
+                    <span class="font-normal text-gray-700 <?= $quedan <= 0 ? 'line-through' : '' ?>"><?= esc($d['producto_nombre']) ?></span>
                     <?php if (!empty($d['deposito_nombre'])): ?>
                     <span class="text-xs text-gray-400 ml-1">(<?= esc($d['deposito_nombre']) ?>)</span>
                     <?php endif; ?>
@@ -240,10 +250,24 @@ $bc = match($venta['estado']) {
                     <?php endif; ?>
                 </td>
                 <td class="px-6 py-3 text-right text-gray-600">$<?= number_format((float)$d['precio'], 2) ?></td>
-                <td class="px-6 py-3 text-right font-medium"><?= $d['cantidad'] ?><?= !empty($d['unidad_nombre']) ? ' <span class="text-xs text-gray-500">' . esc($d['unidad_nombre']) . '</span>' : '' ?></td>
+                <td class="px-6 py-3 text-right font-medium">
+                    <?php if ($devuelta > 0): ?>
+                        <?= rtrim(rtrim(number_format($quedan, 2, '.', ''), '0'), '.') ?: '0' ?><?= !empty($d['unidad_nombre']) ? ' <span class="text-xs text-gray-500">' . esc($d['unidad_nombre']) . '</span>' : '' ?>
+                        <div class="text-[11px] font-semibold text-rose-600 whitespace-nowrap"><?= rtrim(rtrim(number_format((float) $d['cantidad'], 2, '.', ''), '0'), '.') ?> vendidas − <?= rtrim(rtrim(number_format($devuelta, 2, '.', ''), '0'), '.') ?> devuelta<?= $devuelta == 1.0 ? '' : 's' ?></div>
+                    <?php else: ?>
+                        <?= $d['cantidad'] ?><?= !empty($d['unidad_nombre']) ? ' <span class="text-xs text-gray-500">' . esc($d['unidad_nombre']) . '</span>' : '' ?>
+                    <?php endif; ?>
+                </td>
                 <td class="px-6 py-3 text-right text-gray-500">$<?= number_format((float)$d['descuento'], 2) ?></td>
                 <td class="px-6 py-3 text-right text-gray-500">$<?= number_format((float)$d['itbms'], 2) ?></td>
-                <td class="px-6 py-3 text-right font-semibold text-gray-800">$<?= number_format((float)$d['total_linea'], 2) ?></td>
+                <td class="px-6 py-3 text-right font-semibold text-gray-800">
+                    <?php if ($devuelta > 0): ?>
+                        <div class="text-[11px] font-normal text-gray-400 line-through">$<?= number_format((float) $d['total_linea'], 2) ?></div>
+                        $<?= number_format((float) $d['total_linea'] * ($quedan / max(0.0001, (float) $d['cantidad'])), 2) ?>
+                    <?php else: ?>
+                        $<?= number_format((float) $d['total_linea'], 2) ?>
+                    <?php endif; ?>
+                </td>
                 <?php if ($puedeDevolver): ?>
                 <td class="px-3 py-3 text-right">
                     <?php if ($quedan > 0): ?>
@@ -261,6 +285,7 @@ $bc = match($venta['estado']) {
         <tfoot class="bg-gray-50 border-t-2 border-gray-100">
             <?php $totalDevuelto = array_sum(array_map(fn ($x) => (float) $x['monto'], $devoluciones ?? [])); ?>
             <?php if ($totalDevuelto > 0): ?>
+            <tr><td colspan="5" class="px-6 py-2 text-right text-xs text-gray-500">Total de la factura original</td><td class="px-6 py-2 text-right font-medium text-sm text-gray-500">$<?= number_format((float) $venta['total'] + $totalDevuelto, 2) ?></td></tr>
             <tr><td colspan="5" class="px-6 py-2 text-right text-xs text-rose-600 font-semibold">Devoluciones (notas de crédito)</td><td class="px-6 py-2 text-right font-semibold text-sm text-rose-600">−$<?= number_format($totalDevuelto, 2) ?></td></tr>
             <?php endif; ?>
             <tr><td colspan="5" class="px-6 py-2 text-right text-xs text-gray-500">Subtotal</td><td class="px-6 py-2 text-right font-medium text-sm">$<?= number_format((float)$venta['subtotal'], 2) ?></td></tr>

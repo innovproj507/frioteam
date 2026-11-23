@@ -436,6 +436,9 @@ $breadcrumbLabel = $page_title ?? 'Sistema POS';
                     <i class="fas fa-home"></i>
                     <i class="fas fa-chevron-right text-[9px]"></i>
                     <span><?= esc($page_subtitle ?? 'Sistema de punto de venta e inventario') ?></span>
+                    <?php if (!empty($page_volver['url'])): ?>
+                    <a href="<?= esc($page_volver['url'], 'attr') ?>" class="ml-3 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-600 font-semibold hover:bg-sky-100 transition"><i class="fas fa-arrow-left text-[10px]"></i> <?= esc($page_volver['texto'] ?? 'Volver') ?></a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

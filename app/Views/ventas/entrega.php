@@ -95,7 +95,7 @@ $nota = trim((string) ($entrega['nota'] ?? ''));
             <tr>
                 <td class="cen"><?= $n++ ?></td>
                 <td><?= esc($it['nombre']) ?><?= $it['codigo'] !== null && $it['codigo'] !== '' ? ' (' . esc($it['codigo']) . ')' : '' ?></td>
-                <?php foreach ($depositos as $d): $st = (float) ($it['stock'][(int) $d['deposito_id']]['existencia'] ?? 0); $ub = (string) ($it['stock'][(int) $d['deposito_id']]['ubicacion'] ?? ''); ?><td class="cen"><?php if (!empty($bodega) && $st > 0): ?><b><?= esc(number_format($st, 2, '.', '')) ?></b><?php if ($ub !== ''): ?><br><span style="font-size: 8px; color: #555;"><?= esc($ub) ?></span><?php endif; ?><?php endif; ?></td><?php endforeach; ?>
+                <?php foreach ($depositos as $d): $c = $it['celda_dep'][(int) $d['deposito_id']] ?? null; $gris = !empty($bodega) && $c && $c['estado'] === 'insuficiente'; ?><td class="cen"<?= $gris ? ' style="background:#d1d5db;"' : '' ?>><?= !empty($bodega) && $c && $c['estado'] === 'ok' && $c['ubicacion'] !== '' ? '<b>' . esc($c['ubicacion']) . '</b>' : '' ?></td><?php endforeach; ?>
                 <td class="cen"><?= esc(number_format((float) $it['cantidad'], 2, '.', '')) ?></td>
             </tr>
         <?php endforeach; ?>

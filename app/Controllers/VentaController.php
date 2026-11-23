@@ -75,7 +75,8 @@ class VentaController extends BaseController
 
         $ventas = Db::all(
             "SELECT v.*, c.nombre AS cliente_nombre, u.username AS vendedor_nombre,
-                    (SELECT GROUP_CONCAT(DISTINCT forma_pago ORDER BY monto DESC SEPARATOR ',') FROM ventas_pagos WHERE venta_id = v.venta_id) AS formas_pago
+                    (SELECT GROUP_CONCAT(DISTINCT forma_pago ORDER BY monto DESC SEPARATOR ',') FROM ventas_pagos WHERE venta_id = v.venta_id) AS formas_pago,
+                    (SELECT GROUP_CONCAT(DISTINCT cb.forma_pago ORDER BY cv.monto DESC SEPARATOR ',') FROM cobros_ventas cv JOIN cobros cb ON cb.cobro_id = cv.cobro_id WHERE cv.venta_id = v.venta_id) AS formas_cobro
              FROM ventas v
              LEFT JOIN clientes c ON v.cliente_id = c.cliente_id
              LEFT JOIN users u ON v.vendedor_id = u.id

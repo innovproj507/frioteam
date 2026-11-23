@@ -282,7 +282,7 @@
                 <div class="flex gap-2 mb-3" @click.away="resultados = []">
                     <?php if (count($depositos ?? []) > 1): ?>
                     <div class="w-44 shrink-0" title="Depósito de donde sale la mercancía de esta venta">
-                        <select x-model="depositoId" @change="resultados = []; if (query.trim()) buscarProductos()"
+                        <select x-model="depositoId" @change="resultados = []; if (query.trim()) buscarProductos(); refrescarStock()"
                                 class="w-full py-2 pl-3 pr-8 text-sm rounded-lg border border-sky-200 bg-sky-50 text-sky-800 font-semibold focus:ring-1 focus:ring-sky-400 outline-none">
                             <?php foreach ($depositos as $d): $d = (array) $d; ?>
                                 <option value="<?= (int) $d['deposito_id'] ?>"><?= esc($d['nombre']) ?></option>
@@ -348,7 +348,7 @@
                         </thead>
                         <tbody class="divide-y divide-gray-50">
                             <template x-for="(item, index) in items" :key="item.id">
-                                <tr class="hover:bg-gray-50/60 transition-colors">
+                                <tr :class="filaClase(item)" class="transition-colors" :title="avisoStock(item)">
                                     <td class="py-3 pr-4">
                                         <div class="text-sm font-semibold text-gray-800">
                                             <span x-text="item.nombre"></span>
@@ -516,6 +516,7 @@
                     this.items.forEach(i => { if (i.precio_ref == null) i.precio_ref = i.precio; });
                     this.cotizacionOrigenId = preload.cotizacion_id;
                     this.calcularTotales();
+                    this.refrescarStock();
                     this.notify('Datos de cotización cargados', 'success');
                 }
                 this.$watch('tipoDocumento', (val) => {
@@ -664,6 +665,31 @@
                 this.cantidadBusqueda = 1;
             },
 
+            // Color de la fila según la existencia en el depósito elegido:
+            // sin stock o stock menor a lo pedido → rosado · alcanza → blanco
+            filaClase(item) {
+                if (item.stock == null || isNaN(item.stock)) return 'hover:bg-gray-50/60';
+                if (item.stock <= 0 || item.stock < Number(item.cantidad || 0)) return 'bg-rose-100';
+                return 'hover:bg-gray-50/60';
+            },
+            avisoStock(item) {
+                if (item.stock == null || isNaN(item.stock)) return '';
+                if (item.stock <= 0) return 'Sin existencia en este depósito';
+                if (item.stock < Number(item.cantidad || 0)) return 'Solo hay ' + item.stock + ' en este depósito';
+                return '';
+            },
+            // Vuelve a leer la existencia de cada línea (al cambiar de depósito o al cargar una cotización)
+            async refrescarStock() {
+                for (const it of this.items) {
+                    try {
+                        const r = await fetch(`/api/productos/buscar?q=${encodeURIComponent(it.codigo)}&deposito_id=${encodeURIComponent(this.depositoId || '')}`);
+                        const d = await r.json();
+                        const f = (d.productos || []).find(x => String(x.producto_id) === String(it.id));
+                        it.stock = f ? parseFloat(f.stock) : 0;
+                    } catch (e) { /* se deja como estaba */ }
+                }
+            },
+
             agregarItem(p, cant, unidadId = null) {
                 const index = this.items.findIndex(i => i.id === p.producto_id);
                 if (index !== -1) {
@@ -682,6 +708,7 @@
                         precio_ref: parseFloat(p.precio_a) || 0,
                         precio: this.precioConPorcentaje(parseFloat(p.precio_a) || 0),
                         descuento: 0,
+                        stock: p.stock != null ? parseFloat(p.stock) : null,
                         applica_itbms: p.itbms == 1
                     });
                     // Se escaneó el código de una presentación (caja, paca…): se vende esa presentación

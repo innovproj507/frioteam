@@ -100,6 +100,7 @@ $urlEstado = fn (string $e) => '/ventas?' . http_build_query(array_filter(array_
                 <th class="px-5 py-3.5 bg-gray-50/80 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Factura</th>
                 <th class="px-5 py-3.5 bg-gray-50/80 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
                 <th class="px-5 py-3.5 bg-gray-50/80 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</th>
+                <th class="px-5 py-3.5 bg-gray-50/80 text-left text-xs font-bold text-gray-500 uppercase tracking-wider"><i class="fas fa-user-tag mr-1"></i>Facturador</th>
                 <th class="px-5 py-3.5 bg-gray-50/80 text-left text-xs font-bold text-gray-500 uppercase tracking-wider" ><i class="fas fa-wallet mr-1"></i>Forma de pago</th>
                 <th class="px-5 py-3.5 bg-gray-50/80 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Total</th>
                 <th class="px-5 py-3.5 bg-gray-50/80 text-center text-xs font-bold text-gray-500 uppercase tracking-wider" ><i class="fas fa-toggle-on mr-1"></i>Estado</th>
@@ -121,11 +122,17 @@ $urlEstado = fn (string $e) => '/ventas?' . http_build_query(array_filter(array_
                     <div class="text-xs text-gray-400"><?= date('H:i', $ts) ?></div>
                 </td>
                 <td class="px-5 py-3 text-sm text-gray-900 <?= $anulada ? 'opacity-60' : '' ?>"><?= esc($venta['cliente_nombre'] ?: "Consumidor Final") ?></td>
+                <td class="px-5 py-3 whitespace-nowrap text-sm text-gray-700 <?= $anulada ? 'opacity-60' : '' ?>"><?= ($venta['origen'] ?? '') === 'pos' && !empty($venta['vendedor_nombre']) ? esc($venta['vendedor_nombre']) : '<span class="text-gray-300">—</span>' ?></td>
                 <td class="px-5 py-3 whitespace-nowrap">
                     <div class="flex items-center gap-1">
                     <?php
                     // Formas de pago de la venta (ventas_pagos); las viejas sin pagos usan ventas.forma_pago
                     $formasPago = array_filter(explode(',', (string) ($venta['formas_pago'] ?: $venta['forma_pago'])));
+                    // Factura a crédito ya cobrada: en vez de "Crédito" se muestra con qué se pagó (los abonos)
+                    if (in_array('CREDITO', array_map('strtoupper', array_map('trim', $formasPago)), true)
+                        && ($venta['estado'] ?? '') !== 'pendiente' && !$anulada && !empty($venta['formas_cobro'])) {
+                        $formasPago = array_filter(explode(',', (string) $venta['formas_cobro']));
+                    }
                     $iconoPago = [
                         'EFECTIVO'      => ['fa-money-bill-wave',       'bg-emerald-50 text-emerald-600', 'Efectivo'],
                         'YAPPY'         => ['fa-mobile-screen-button',  'bg-sky-50 text-sky-600',         'Yappy'],
@@ -172,7 +179,7 @@ $urlEstado = fn (string $e) => '/ventas?' . http_build_query(array_filter(array_
             <?php endforeach; ?>
             <?php if (empty($ventas)): ?>
             <tr>
-                <td colspan="7" class="px-4 py-10 text-center text-sm text-gray-400">
+                <td colspan="8" class="px-4 py-10 text-center text-sm text-gray-400">
                     <i class="fas fa-receipt text-3xl mb-2 block text-gray-200"></i>
                     No se encontraron ventas
                 </td>

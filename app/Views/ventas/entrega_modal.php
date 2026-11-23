@@ -62,7 +62,7 @@ $qs     = $bodega ? '?bodega=1' : '';
             <tr>
                 <td class="px-3 py-2.5 text-center border border-gray-200"><?= $n++ ?></td>
                 <td class="px-3 py-2.5 border border-gray-200"><?= esc($it['nombre']) ?><?= $it['codigo'] !== null && $it['codigo'] !== '' ? ' (' . esc($it['codigo']) . ')' : '' ?></td>
-                <?php foreach (($depositos ?? []) as $d): $st = (float) ($it['stock'][(int) $d['deposito_id']]['existencia'] ?? 0); $ub = (string) ($it['stock'][(int) $d['deposito_id']]['ubicacion'] ?? ''); ?><td class="px-3 py-2 text-center border border-gray-200 leading-tight"><?php if ($bodega && $st > 0): ?><span class="font-semibold"><?= esc(number_format($st, 2, '.', '')) ?></span><?php if ($ub !== ''): ?><span class="block text-[11px] text-gray-500"><?= esc($ub) ?></span><?php endif; ?><?php endif; ?></td><?php endforeach; ?>
+                <?php foreach (($depositos ?? []) as $d): $c = $it['celda_dep'][(int) $d['deposito_id']] ?? null; $gris = $bodega && $c && $c['estado'] === 'insuficiente'; ?><td class="px-3 py-2.5 text-center border border-gray-200 font-semibold<?= $gris ? ' bg-gray-300' : '' ?>"><?= $bodega && $c && $c['estado'] === 'ok' && $c['ubicacion'] !== '' ? esc($c['ubicacion']) : '' ?></td><?php endforeach; ?>
                 <td class="px-3 py-2.5 text-center border border-gray-200"><?= esc(number_format((float) $it['cantidad'], 2, '.', '')) ?></td>
             </tr>
         <?php endforeach; ?>
@@ -82,7 +82,7 @@ $qs     = $bodega ? '?bodega=1' : '';
         <i class="fas fa-user text-sky-500"></i> Para el cliente
     </button>
     <?php else: ?>
-    <button type="button" onclick="verEntrega(<?= $id ?>, true)" class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 mr-auto" title="Hoja con la existencia de cada depósito, para entregar a bodega">
+    <button type="button" onclick="verEntrega(<?= $id ?>, true)" class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 mr-auto" title="Hoja con la ubicación de cada producto, para entregar a bodega">
         <i class="fas fa-warehouse text-amber-500"></i> Para bodega
     </button>
     <?php endif; ?>

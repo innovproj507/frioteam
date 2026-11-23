@@ -115,7 +115,7 @@ final class EntregaVenta
             return null;
         }
         $items = Db::all(
-            "SELECT p.producto_id, p.nombre, p.codigo, d.cantidad, d.unidad_nombre
+            "SELECT p.producto_id, d.deposito_id, p.nombre, p.codigo, d.cantidad, d.unidad_nombre
              FROM ventas_detalle d JOIN productos p ON p.producto_id = d.producto_id
              WHERE d.venta_id = ? ORDER BY d.detalle_id",
             [$e['venta_id']]
@@ -123,7 +123,7 @@ final class EntregaVenta
 
         $depositos = Db::all("SELECT deposito_id, nombre FROM depositos WHERE sucursal_id = ? AND estado = 'activo' ORDER BY deposito_id", [$sucursalId]);
 
-        // Hoja para bodega: en la columna de cada depósito va lo que hay en existencia; si no hay, queda en blanco
+        // Hoja para bodega: la ubicación del producto va en la columna del depósito que usó la venta; el otro queda en blanco
         if ($bodega && $items && $depositos) {
             $ids  = array_values(array_unique(array_map(fn ($i) => (int) $i['producto_id'], $items)));
             $dep  = array_map(fn ($d) => (int) $d['deposito_id'], $depositos);
@@ -134,7 +134,18 @@ final class EntregaVenta
                 $stock[(int) $r['producto_id']][(int) $r['deposito_id']] = ['existencia' => (float) $r['existencia'], 'ubicacion' => trim((string) ($r['ubicacion'] ?? ''))];
             }
             foreach ($items as &$it) {
-                $it['stock'] = $stock[(int) $it['producto_id']] ?? [];
+                // Solo el depósito de esa línea de la venta. Con existencia suficiente sale la ubicación;
+                // con existencia insuficiente la celda queda gris (sin ubicación); sin existencia (0 o negativa), en blanco.
+                $dl  = (int) ($it['deposito_id'] ?? 0);
+                $reg = $stock[(int) $it['producto_id']][$dl] ?? ['existencia' => 0.0, 'ubicacion' => ''];
+                if ($reg['existencia'] <= 0) {
+                    $estado = 'vacio';
+                } elseif ($reg['existencia'] + 0.0001 < (float) $it['cantidad']) {
+                    $estado = 'insuficiente';
+                } else {
+                    $estado = 'ok';
+                }
+                $it['celda_dep'] = [$dl => ['estado' => $estado, 'ubicacion' => $reg['ubicacion']]];
             }
             unset($it);
         }

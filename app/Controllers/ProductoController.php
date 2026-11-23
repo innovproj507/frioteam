@@ -158,6 +158,111 @@ class ProductoController extends BaseController
         ]);
     }
 
+    /** Historial de ventas de un producto en la tienda activa (con filtro de fechas). */
+    public function historialVentas(int $productoId)
+    {
+        $producto = ProductoService::buscar($productoId, (int) $this->empresaId());
+        if (!$producto) {
+            $this->error('Producto no encontrado o no autorizado.');
+            return redirect()->to('/inventario');
+        }
+        [$desde, $hasta] = $this->rangoFechas();
+        $params = [$productoId, $this->sucursalId()];
+        $where  = '';
+        if ($desde !== '') { $where .= ' AND DATE(v.fecha) >= ?'; $params[] = $desde; }
+        if ($hasta !== '') { $where .= ' AND DATE(v.fecha) <= ?'; $params[] = $hasta; }
+
+        $filas = Db::all(
+            "SELECT v.venta_id, v.numero_factura, v.fecha, v.estado, v.origen, c.nombre AS cliente, u.username AS facturador,
+                    dep.nombre AS deposito, d.cantidad, d.cantidad_devuelta, d.precio, d.descuento, d.total_linea
+             FROM ventas_detalle d
+             JOIN ventas v ON v.venta_id = d.venta_id
+             LEFT JOIN clientes c ON c.cliente_id = v.cliente_id
+             LEFT JOIN users u ON u.id = v.vendedor_id
+             LEFT JOIN depositos dep ON dep.deposito_id = d.deposito_id
+             WHERE d.producto_id = ? AND v.sucursal_id = ? {$where}
+             ORDER BY v.fecha DESC, v.venta_id DESC LIMIT 500",
+            $params
+        );
+        $unidades = 0.0; $monto = 0.0;
+        foreach ($filas as $f) {
+            if ($f['estado'] !== 'anulada') {
+                $unidades += (float) $f['cantidad'] - (float) $f['cantidad_devuelta'];
+                $monto    += (float) $f['total_linea'];
+            }
+        }
+
+        return $this->render('inventario.historial', [
+            'page_title'    => 'Historial de ventas',
+            'page_volver'   => ['url' => "/inventario/{$productoId}", 'texto' => 'Volver al producto'],
+            'page_subtitle' => $producto['nombre'] ?? '',
+            'tipo'          => 'ventas',
+            'producto'      => $producto,
+            'productoId'    => $productoId,
+            'filas'         => $filas,
+            'resumen'       => ['movimientos' => count($filas), 'unidades' => $unidades, 'monto' => $monto],
+            'desde'         => $desde,
+            'hasta'         => $hasta,
+        ]);
+    }
+
+    /** Historial de compras de un producto en la tienda activa (con filtro de fechas). */
+    public function historialCompras(int $productoId)
+    {
+        $producto = ProductoService::buscar($productoId, (int) $this->empresaId());
+        if (!$producto) {
+            $this->error('Producto no encontrado o no autorizado.');
+            return redirect()->to('/inventario');
+        }
+        [$desde, $hasta] = $this->rangoFechas();
+        $params = [$productoId, $this->sucursalId()];
+        $where  = '';
+        if ($desde !== '') { $where .= ' AND c.fecha_compra >= ?'; $params[] = $desde; }
+        if ($hasta !== '') { $where .= ' AND c.fecha_compra <= ?'; $params[] = $hasta; }
+
+        $filas = Db::all(
+            "SELECT c.compra_id, c.numero_factura, c.numero_factura_proveedor, c.fecha_compra, c.estado, pr.nombre AS proveedor,
+                    dep.nombre AS deposito, d.cantidad, d.cantidad_recibida, d.costo, d.total_linea
+             FROM compras_detalle d
+             JOIN compras c ON c.compra_id = d.compra_id
+             LEFT JOIN proveedores pr ON pr.proveedor_id = c.proveedor_id
+             LEFT JOIN depositos dep ON dep.deposito_id = c.deposito_id
+             WHERE d.producto_id = ? AND c.sucursal_id = ? {$where}
+             ORDER BY c.fecha_compra DESC, c.compra_id DESC LIMIT 500",
+            $params
+        );
+        $unidades = 0.0; $monto = 0.0;
+        foreach ($filas as $f) {
+            if ($f['estado'] !== 'cancelada') {
+                $unidades += (float) $f['cantidad'];
+                $monto    += (float) $f['total_linea'];
+            }
+        }
+
+        return $this->render('inventario.historial', [
+            'page_title'    => 'Historial de compras',
+            'page_volver'   => ['url' => "/inventario/{$productoId}", 'texto' => 'Volver al producto'],
+            'page_subtitle' => $producto['nombre'] ?? '',
+            'tipo'          => 'compras',
+            'producto'      => $producto,
+            'productoId'    => $productoId,
+            'filas'         => $filas,
+            'resumen'       => ['movimientos' => count($filas), 'unidades' => $unidades, 'monto' => $monto],
+            'desde'         => $desde,
+            'hasta'         => $hasta,
+        ]);
+    }
+
+    /** @return array{0: string, 1: string} desde y hasta (YYYY-MM-DD) válidos o vacíos */
+    private function rangoFechas(): array
+    {
+        $f = function (string $k): string {
+            $v = (string) ($this->request->getGet($k) ?? '');
+            return preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) ? $v : '';
+        };
+        return [$f('desde'), $f('hasta')];
+    }
+
     // ── Alta / edición ───────────────────────────────────────────────────────
 
     public function crear(): string

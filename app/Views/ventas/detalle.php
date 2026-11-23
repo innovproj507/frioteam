@@ -81,7 +81,7 @@ $bc = match($venta['estado']) {
             <i class="fas fa-truck"></i> Agregar entrega
         </button>
         <?php endif; ?>
-        <button type="button" onclick="hojaBodega()" title="Hoja con la existencia de cada depósito, para entregar a bodega"
+        <button type="button" onclick="hojaBodega()" title="Hoja con la ubicación de cada producto, para entregar a bodega"
            class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
             <i class="fas fa-warehouse text-amber-500"></i> Para bodega
         </button>
@@ -165,9 +165,25 @@ $bc = match($venta['estado']) {
             </div>
             <div class="flex items-start gap-4 py-2">
                 <label class="text-sm font-semibold text-gray-600 w-36 shrink-0">Forma de Pago</label>
-                <?php if (!empty($pagos_venta)): ?>
+                <?php
+                // Factura a crédito ya cobrada: en vez de "CREDITO" se muestra con qué se pagó (los abonos), por forma de pago
+                $pagosMostrar = $pagos_venta ?? [];
+                if ($pagosMostrar && !empty($abonos) && !in_array($venta['estado'], ['pendiente', 'anulada'], true)
+                    && in_array('CREDITO', array_map('strtoupper', array_column($pagosMostrar, 'forma_pago')), true)) {
+                    $porForma = [];
+                    foreach ($abonos as $ab) {
+                        $k = strtoupper((string) $ab['forma_pago']);
+                        $porForma[$k]['forma_pago'] = $k;
+                        $porForma[$k]['monto']      = ($porForma[$k]['monto'] ?? 0) + (float) $ab['monto'];
+                        $porForma[$k]['referencia'] = $ab['referencia'] ?? ($porForma[$k]['referencia'] ?? null);
+                    }
+                    $otros = array_filter($pagosMostrar, fn ($pg) => strtoupper((string) $pg['forma_pago']) !== 'CREDITO');
+                    $pagosMostrar = array_merge(array_values($otros), array_values($porForma));
+                }
+                ?>
+                <?php if (!empty($pagosMostrar)): ?>
                     <div class="flex flex-col gap-1">
-                        <?php foreach ($pagos_venta as $pg): ?>
+                        <?php foreach ($pagosMostrar as $pg): ?>
                             <span class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-sky-500 text-white">
                                 <?= esc(strtoupper($pg['forma_pago'])) ?>
                                 <span>$<?= number_format((float)$pg['monto'], 2) ?></span>

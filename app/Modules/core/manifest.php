@@ -15,6 +15,7 @@ return [
     'menu_top' => [
         ['type' => 'section', 'label' => 'Principal'],
         ['type' => 'link', 'label' => 'Dashboard', 'icon' => 'fas fa-home', 'href' => '/', 'permission' => 'dashboard.ver'],
+        ['type' => 'link', 'label' => 'Productos', 'icon' => 'fas fa-box', 'href' => '/inventario', 'permission' => 'productos.ver'],
     ],
 
     // Items de módulo propios (vacío — core no ocupa sección media)

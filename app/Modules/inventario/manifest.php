@@ -12,7 +12,7 @@ return [
     'menu_order'   => 20,
     'menu' => [
         ['type' => 'section', 'label' => 'Inventario'],
-        ['type' => 'link', 'label' => 'Productos',       'icon' => 'fas fa-box',                  'href' => '/inventario', 'permission' => 'productos.ver'],
+        // «Productos» va arriba del todo (bajo Dashboard): ver menu_top de core/manifest.php
         ['type' => 'link', 'label' => 'Categorías',      'icon' => 'fas fa-tags',                 'href' => '/inventario/categorias', 'permission' => 'categorias.ver'],
         ['type' => 'link', 'label' => 'Marcas',          'icon' => 'fas fa-certificate',          'href' => '/inventario/marcas', 'permission' => 'categorias.ver'],
         ['type' => 'link', 'label' => 'Proveedores',     'icon' => 'fas fa-truck',                'href' => '/inventario/proveedores', 'permission' => 'proveedores.ver'],

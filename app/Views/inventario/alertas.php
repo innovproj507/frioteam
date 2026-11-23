@@ -10,11 +10,12 @@ $tipoLabels = [
     'rotacion_lenta'      => ['label' => 'Rotación Lenta',       'icon' => 'fa-snooze',              'color' => 'gray'],
 ];
 $prioridadClasses = [
-    'critica' => 'bg-red-500 text-white',
-    'alta'    => 'bg-orange-500 text-white',
-    'media'   => 'bg-amber-500 text-white',
-    'baja'    => 'bg-gray-400 text-white',
+    'critica' => 'bg-red-100 text-red-600',
+    'alta'    => 'bg-orange-100 text-orange-600',
+    'media'   => 'bg-amber-100 text-amber-600',
+    'baja'    => 'bg-gray-100 text-gray-500',
 ];
+$prioridadIconos = ['critica' => 'fa-circle-exclamation', 'alta' => 'fa-triangle-exclamation', 'media' => 'fa-flag', 'baja' => 'fa-flag'];
 ?>
 
 <!-- Resumen -->
@@ -73,7 +74,7 @@ foreach ($alertas as $a) { $agrupadas[$a['tipo']][] = $a; }
         <form method="POST" action="/inventario/alertas/resolver-todas">
             <?= csrf_field() ?>
             <input type="hidden" name="tipo" value="<?= $tipo ?>">
-            <button class="text-xs text-gray-400 hover:text-gray-700 transition">Resolver grupo</button>
+            <button class="text-xs text-gray-500 hover:text-gray-800 transition inline-flex items-center gap-1" title="Marcar como resueltas todas las alertas de este grupo"><i class="fas fa-check-double"></i> Resolver grupo</button>
         </form>
     </div>
 
@@ -81,9 +82,9 @@ foreach ($alertas as $a) { $agrupadas[$a['tipo']][] = $a; }
     <table class="w-full text-sm">
         <thead class="text-[10px] text-gray-400 uppercase bg-gray-50/50">
             <tr>
-                <th class="px-4 py-2 text-left">Mensaje</th>
-                <th class="px-4 py-2 text-center">Prioridad</th>
-                <th class="px-4 py-2 text-center w-24">Acción</th>
+                <th class="px-4 py-2 text-left"><i class="fas fa-message mr-1"></i>Mensaje</th>
+                <th class="px-4 py-2 text-center"><i class="fas fa-flag mr-1"></i>Prioridad</th>
+                <th class="px-4 py-2 text-center w-24"><i class="fas fa-bolt mr-1"></i>Acción</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
@@ -99,15 +100,14 @@ foreach ($alertas as $a) { $agrupadas[$a['tipo']][] = $a; }
                     <?php endif; ?>
                 </td>
                 <td class="px-4 py-3 text-center">
-                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase <?= $prioridadClasses[$alerta['prioridad']] ?? 'bg-gray-400 text-white' ?>">
-                        <?= ucfirst($alerta['prioridad']) ?>
-                    </span>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap <?= $prioridadClasses[$alerta['prioridad']] ?? 'bg-gray-100 text-gray-500' ?>"
+                          title="Prioridad <?= esc($alerta['prioridad']) ?>"><i class="fas <?= $prioridadIconos[$alerta['prioridad']] ?? 'fa-flag' ?> text-[10px]"></i> <?= esc(ucfirst($alerta['prioridad'])) ?></span>
                 </td>
                 <td class="px-4 py-3 text-center">
                     <form method="POST" action="/inventario/alertas/<?= $alerta['alerta_id'] ?>/resolver">
                         <?= csrf_field() ?>
-                        <button class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600 transition">
-                            <i class="fas fa-check"></i>Resolver
+                        <button class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors inline-flex items-center justify-center" title="Marcar como resuelta" aria-label="Marcar como resuelta">
+                            <i class="fas fa-check text-xs"></i>
                         </button>
                     </form>
                 </td>

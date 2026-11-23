@@ -255,7 +255,8 @@
                                 class="px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pos focus:border-transparent">
                                 <option value="">Consumidor Final</option>
                                 <?php foreach (($clientes ?? []) as $cliente): ?>
-                                <option value="<?= $cliente['cliente_id'] ?>"<?= isset($cliente['itbms']) && (float) $cliente['itbms'] <= 0 ? ' data-exento="1"' : '' ?>><?= esc(mb_substr($cliente['nombre'], 0, 40)) ?></option>
+                                <?php $doc = trim((string) ($cliente['ruc'] ?? '')); ?>
+                                <option value="<?= $cliente['cliente_id'] ?>" data-doc="<?= esc(mb_strtolower($doc . ' ' . ($cliente['codigo'] ?? '') . ' ' . ($cliente['telefono'] ?? '') . ' ' . ($cliente['celular'] ?? ''))) ?>"<?= isset($cliente['itbms']) && (float) $cliente['itbms'] <= 0 ? ' data-exento="1"' : '' ?>><?= esc(mb_substr($cliente['nombre'], 0, 40)) ?><?= $doc !== '' ? ' · ' . esc($doc) : '' ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -296,7 +297,7 @@
                                         <th class="px-3 py-3 text-left text-xs font-bold text-white">Lugar(2)</th>
                                         <th class="px-3 py-3 text-left text-xs font-bold text-white">Código</th>
                                         <th class="px-3 py-3 text-left text-xs font-bold text-white">Descripción</th>
-                                        <th class="px-3 py-3 text-center text-xs font-bold text-white">Cantidad</th>
+                                        <th class="px-3 py-3 text-center text-xs font-bold text-white" title="Existencia en <?= esc($deposito_pos_nombre ?? 'el depósito de venta', 'attr') ?>">Cantidad<?php if (!empty($deposito_pos_nombre)): ?><span class="block text-[10px] font-normal text-white/80 leading-tight"><?= esc($deposito_pos_nombre) ?></span><?php endif; ?></th>
                                         <?php if (\App\Libraries\Auth::can('productos.ver_precio_a')): ?><th class="px-3 py-3 text-center text-xs font-bold text-white">Precio(A)</th><?php endif; ?>
                                         <th class="px-3 py-3 text-center text-xs font-bold text-white">Precio(B)</th>
                                         <th class="px-3 py-3 text-center text-xs font-bold text-white">Precio(C)</th>
@@ -660,8 +661,23 @@
 
             // Initialize Select2
             $(document).ready(function() {
+                // Busca por nombre (varias palabras, en cualquier orden), cédula/RUC/código o teléfono/celular (con o sin guiones o espacios)
+                const limpiar = t => (t || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+                const soloAlfanum = t => limpiar(t).replace(/[^a-z0-9]/g, '');
                 $('#txcliente').select2({
                     width: '100%',
+                    matcher: function(params, data) {
+                        const q = limpiar(params.term).trim();
+                        if (q === '') return data;
+                        if (!data.id) return null;
+                        const texto = limpiar(data.text);
+                        const doc = limpiar($(data.element).attr('data-doc'));
+                        const palabras = q.split(/\s+/);
+                        if (palabras.every(w => texto.indexOf(w) > -1 || doc.indexOf(w) > -1)) return data;
+                        const qa = soloAlfanum(q);
+                        if (qa.length >= 2 && soloAlfanum(doc).indexOf(qa) > -1) return data;
+                        return null;
+                    },
                     language: { noResults: function() { return "No se encontraron clientes"; } }
                 });
                 $('#txcliente').on('select2:select select2:unselect', function() {
@@ -865,7 +881,7 @@
         }
 
         function buscarProductos(q) {
-            fetch(`/api/productos/buscar?q=${encodeURIComponent(q)}`)
+            fetch(`/api/productos/buscar?q=${encodeURIComponent(q)}${PARAM_STOCK_DEPOSITO}`)
                 .then(r => r.json())
                 .then(data => {
                     resultadosBusqueda = data.productos || [];
@@ -894,6 +910,9 @@
 
         // true = los resultados salen arriba y el carrito se queda abajo (lápiz); false = solo se ve lo buscado (Enter)
         let resultadosConCarrito = false;
+        // Depósito activo de la sesión: la cantidad que se muestra es la de ESE depósito (de donde descuenta la venta)
+        const DEPOSITO_POS = <?= (int) ($deposito_pos ?? 0) ?>;
+        const PARAM_STOCK_DEPOSITO = DEPOSITO_POS > 0 ? '&stock_deposito=' + DEPOSITO_POS : '';
 
         function mostrarResultados() {
             document.getElementById('titulo-resultados').textContent = `Resultados: ${resultadosBusqueda.length} encontrados`;
@@ -999,7 +1018,7 @@
             const item = carrito[i];
             if (!item) return;
             try {
-                const r = await fetch('/api/productos/buscar?q=' + encodeURIComponent(item.codigo));
+                const r = await fetch('/api/productos/buscar?q=' + encodeURIComponent(item.codigo) + PARAM_STOCK_DEPOSITO);
                 const d = await r.json();
                 const lista = (d.productos || []).filter(x => String(x.producto_id) === String(item.id));
                 if (!lista.length) { toast('No se encontró el producto para mostrar sus precios', 'error'); return; }
@@ -1164,7 +1183,7 @@
         function agregarPorCodigo(codigo) {
             const q = (codigo || '').trim();
             if (!q) return;
-            fetch(`/api/productos/buscar?q=${encodeURIComponent(q)}`)
+            fetch(`/api/productos/buscar?q=${encodeURIComponent(q)}${PARAM_STOCK_DEPOSITO}`)
                 .then(r => {
                     if (r.status === 401) throw new Error('Sesión expirada');
                     if (!r.ok) throw new Error('HTTP ' + r.status);

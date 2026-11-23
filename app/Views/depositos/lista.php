@@ -3,52 +3,12 @@
 
 <?php $s = $stats ?? []; $depositos = $depositos ?? []; $pagination = $pagination ?? []; ?>
 
-<!-- Tarjetas de métricas -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-sky-500 to-sky-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Total</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['total'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-warehouse"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Activos</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['activos'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-circle-check"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-amber-500 to-amber-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Productos</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['total_skus'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-box"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-orange-500 to-orange-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Stock total</p>
-                <h3 class="text-xl font-extrabold mt-1 truncate"><?= number_format((float)($s['stock_total'] ?? 0)) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-cubes"></i></span>
-        </div>
-    </div>
-</div>
-
 <!-- Barra de filtros -->
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 mb-4">
     <form method="GET" id="search-form" class="flex flex-wrap items-end gap-3">
 
         <div class="flex-1 min-w-48">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Buscar</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-magnifying-glass mr-1"></i>Buscar</label>
             <div class="relative">
                 <i class="fas fa-search absolute left-0 top-2 text-gray-400 text-xs"></i>
                 <input type="text" name="buscar" id="search-input"
@@ -62,7 +22,7 @@
         </div>
 
         <div class="min-w-28">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Por página</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-list-ol mr-1"></i>Por página</label>
             <select name="por_pagina" onchange="this.form.submit()"
                 class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
                 <?php foreach ([10, 25, 50, 100] as $n): ?>
@@ -74,9 +34,9 @@
         <div class="flex gap-2">
             <?php if (!empty($buscar)): ?>
             <a href="/inventario/depositos"
-                class="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 text-gray-400 rounded-lg text-sm hover:bg-gray-50 transition"
-                title="Limpiar búsqueda">
-                <i class="fas fa-times"></i>
+                class="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+                title="Quitar la búsqueda">
+                <i class="fas fa-xmark"></i> Limpiar
             </a>
             <?php endif; ?>
             <a href="/inventario/depositos/nuevo"
@@ -105,11 +65,11 @@
     <table class="w-full text-sm">
         <thead>
             <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                <th class="px-4 py-3 bg-white">Depósito</th>
-                <th class="px-4 py-3 bg-white">Descripción</th>
-                <th class="px-4 py-3 bg-white text-center">Productos</th>
-                <th class="px-4 py-3 bg-white text-center">Stock</th>
-                <th class="px-4 py-3 bg-white text-center">Estado</th>
+                <th class="px-4 py-3 bg-white"><i class="fas fa-warehouse mr-1"></i>Depósito</th>
+                <th class="px-4 py-3 bg-white"><i class="fas fa-align-left mr-1"></i>Descripción</th>
+                <th class="px-4 py-3 bg-white text-center"><i class="fas fa-box mr-1"></i>Productos</th>
+                <th class="px-4 py-3 bg-white text-center"><i class="fas fa-cubes mr-1"></i>Stock</th>
+                <th class="px-4 py-3 bg-white text-center"><i class="fas fa-toggle-on mr-1"></i>Estado</th>
                 <th class="px-4 py-3 bg-white text-center">Acciones</th>
             </tr>
         </thead>
@@ -121,7 +81,7 @@
                 <!-- Nombre + código -->
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-sky-500/30">
+                        <div class="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
                             <i class="fas fa-warehouse text-xs"></i>
                         </div>
                         <div class="min-w-0">
@@ -130,9 +90,7 @@
                                     <?= esc($dep['nombre']) ?>
                                 </span>
                                 <?php if (!empty($dep['es_principal'])): ?>
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-500 text-white">
-                                    Principal
-                                </span>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700" title="Depósito principal"><i class="fas fa-star"></i> Principal</span>
                                 <?php endif; ?>
                             </div>
                             <p class="text-xs text-gray-400 font-mono mt-0.5"><?= esc($dep['codigo']) ?></p>
@@ -149,8 +107,8 @@
                 <td class="px-4 py-3 text-center">
                     <?php $totalProd = (int)($dep['total_productos'] ?? 0); ?>
                     <?php if ($totalProd > 0): ?>
-                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500 text-white min-w-[2rem]">
-                        <?= $totalProd ?>
+                    <span class="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 min-w-[2rem]" title="<?= (int) $totalProd ?> productos" aria-label="<?= (int) $totalProd ?> productos">
+                        <i class="fas fa-box text-[10px]"></i><?= $totalProd ?>
                     </span>
                     <?php else: ?>
                     <span class="text-gray-300 text-xs">0</span>
@@ -167,33 +125,34 @@
 
                 <!-- Estado -->
                 <td class="px-4 py-3 text-center">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold
-                        <?= $activo ? 'bg-emerald-500 text-white' : 'bg-gray-300 text-white' ?>">
-                        <?= $activo ? 'Activo' : 'Inactivo' ?>
-                    </span>
+                    <?php if ($activo): ?>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-emerald-100 text-emerald-600" title="Activo"><i class="fas fa-check text-[10px]"></i> Activo</span>
+                    <?php else: ?>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-red-100 text-red-500" title="Inactivo"><i class="fas fa-xmark text-[10px]"></i> Inactivo</span>
+                    <?php endif; ?>
                 </td>
 
                 <!-- Acciones -->
                 <td class="px-4 py-3 text-center">
-                    <div class="flex items-center justify-center gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                    <div class="flex items-center justify-center gap-1.5">
                         <a href="/inventario/depositos/<?= $dep['deposito_id'] ?>"
-                            class="w-8 h-8 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center justify-center shadow-sm shadow-blue-500/30" title="Ver inventario">
+                            class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-center" title="Ver el inventario del depósito" aria-label="Ver el inventario del depósito">
                             <i class="fas fa-boxes text-xs"></i>
                         </a>
                         <a href="/inventario/depositos/<?= $dep['deposito_id'] ?>/editar"
-                            class="w-8 h-8 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center justify-center shadow-sm shadow-amber-500/30" title="Editar">
+                            class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white transition-colors flex items-center justify-center" title="Editar depósito" aria-label="Editar depósito">
                             <i class="fas fa-pen text-xs"></i>
                         </a>
                         <?php if ((int)($dep['stock_total'] ?? 0) === 0): ?>
                         <form action="/inventario/depositos/<?= $dep['deposito_id'] ?>/eliminar" method="POST"
                             class="inline" onsubmit="return confirm('¿Eliminar el depósito «<?= esc(addslashes($dep['nombre'])) ?>»?')">
                             <?= csrf_field() ?>
-                            <button type="submit" class="w-8 h-8 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center shadow-sm shadow-red-500/30" title="Eliminar">
+                            <button type="submit" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 hover:bg-red-500 hover:text-white transition-colors flex items-center justify-center" title="Eliminar depósito" aria-label="Eliminar depósito">
                                 <i class="fas fa-trash text-xs"></i>
                             </button>
                         </form>
                         <?php else: ?>
-                        <span class="w-8 h-8 rounded-lg bg-gray-100 text-gray-300 cursor-not-allowed flex items-center justify-center" title="Tiene stock — traslade primero">
+                        <span class="w-8 h-8 rounded-lg bg-gray-100 text-gray-300 cursor-not-allowed flex items-center justify-center" title="No se puede eliminar: tiene stock, traslade primero" aria-label="No se puede eliminar: tiene stock">
                             <i class="fas fa-trash text-xs"></i>
                         </span>
                         <?php endif; ?>

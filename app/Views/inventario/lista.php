@@ -58,7 +58,7 @@ function posCatFilter() {
 
         <!-- Buscador texto -->
         <div class="flex-1 min-w-48">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Buscar</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-magnifying-glass mr-1"></i>Buscar</label>
             <div class="relative">
                 <i class="fas fa-search absolute left-0 top-2 text-gray-400 text-xs"></i>
                 <input type="text" name="buscar" value="<?= esc($_GET['buscar'] ?? '') ?>"
@@ -73,7 +73,7 @@ function posCatFilter() {
         <!-- Autocomplete de categoría -->
         <div class="min-w-52 relative" x-data="posCatFilter()" @click.outside="open = false">
 
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Categoría</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-tags mr-1"></i>Categoría</label>
             <input type="hidden" name="categoria" :value="selectedId">
 
             <div class="relative">
@@ -117,19 +117,20 @@ function posCatFilter() {
         </div>
 
         <!-- Estado -->
-        <div class="min-w-32">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Estado</label>
-            <select name="estado" onchange="this.form.submit()"
-                class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
-                <option value="">Todos</option>
-                <option value="activo"   <?= (($_GET['estado'] ?? '') === 'activo')   ? 'selected' : '' ?>>Activo</option>
-                <option value="inactivo" <?= (($_GET['estado'] ?? '') === 'inactivo') ? 'selected' : '' ?>>Inactivo</option>
-            </select>
+        <?php $estSel = (string) ($_GET['estado'] ?? ''); $chipI = 'inline-flex items-center justify-center gap-1 h-8 min-w-8 px-2.5 rounded-lg text-xs font-semibold transition-colors'; ?>
+        <input type="hidden" name="estado" value="<?= esc($estSel) ?>">
+        <div>
+            <p class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-toggle-on mr-1"></i>Estado</p>
+            <div class="inline-flex bg-gray-50 border border-gray-100 rounded-xl p-0.5 gap-0.5">
+                <a href="#" data-filtro="estado" data-valor="" title="Todos los productos" class="<?= $chipI ?> <?= $estSel === '' ? 'bg-slate-800 text-white' : 'text-gray-500 hover:text-slate-800' ?>">Todos</a>
+                <a href="#" data-filtro="estado" data-valor="activo" title="Solo activos" class="<?= $chipI ?> <?= $estSel === 'activo' ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:text-emerald-600' ?>"><i class="fas fa-circle-check"></i> Activos</a>
+                <a href="#" data-filtro="estado" data-valor="inactivo" title="Solo inactivos" class="<?= $chipI ?> <?= $estSel === 'inactivo' ? 'bg-red-500 text-white' : 'text-gray-500 hover:text-red-500' ?>"><i class="fas fa-circle-xmark"></i> Inactivos</a>
+            </div>
         </div>
 
         <!-- Depósito: ver lo que hay en cada uno -->
         <div class="min-w-36">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Depósito</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-warehouse mr-1"></i>Depósito</label>
             <select name="deposito" onchange="this.form.submit()"
                 class="w-full py-1.5 px-0 text-sm font-semibold bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
                 <?php foreach (($depositos_lista ?? []) as $d): ?>
@@ -141,9 +142,9 @@ function posCatFilter() {
         <div class="flex gap-2">
             <?php if (!empty($_GET['buscar']) || !empty($currentCat) || !empty($_GET['estado'])): ?>
             <a href="/inventario"
-                class="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 text-gray-400 rounded-lg text-sm hover:bg-gray-50 transition"
-                title="Limpiar filtros">
-                <i class="fas fa-times"></i>
+                class="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+                title="Quitar los filtros">
+                <i class="fas fa-xmark"></i> Limpiar
             </a>
             <?php endif; ?>
             <a href="/inventario/exportar-excel"
@@ -174,14 +175,14 @@ function posCatFilter() {
     <table class="min-w-full divide-y divide-gray-100">
         <thead>
             <tr>
-                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Producto</th>
-                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Código</th>
-                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ubicación</th>
-                <?php if (ver_costos()): ?><th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Costo</th><?php endif; ?>
-                <?php if (\App\Libraries\Auth::can('productos.ver_precio_a')): ?><th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-sky-500 uppercase tracking-wider">Precio A</th><?php endif; ?>
-                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-emerald-500 uppercase tracking-wider">Precio B</th>
-                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider">Precio C</th>
-                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Inventario</th>
+                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"><i class="fas fa-box mr-1"></i>Producto</th>
+                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"><i class="fas fa-barcode mr-1"></i>Código</th>
+                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"><i class="fas fa-location-dot mr-1"></i>Ubicación</th>
+                <?php if (ver_costos()): ?><th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"><i class="fas fa-coins mr-1"></i>Costo</th><?php endif; ?>
+                <?php if (\App\Libraries\Auth::can('productos.ver_precio_a')): ?><th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-sky-500 uppercase tracking-wider"><i class="fas fa-tag mr-1"></i>Precio A</th><?php endif; ?>
+                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-emerald-500 uppercase tracking-wider"><i class="fas fa-tag mr-1"></i>Precio B</th>
+                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-pink-500 uppercase tracking-wider"><i class="fas fa-tag mr-1"></i>Precio C</th>
+                <th class="px-3 py-3 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"><i class="fas fa-warehouse mr-1"></i>Inventario</th>
                 <th class="px-3 py-3 bg-gray-50 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
             </tr>
         </thead>
@@ -211,7 +212,10 @@ function posCatFilter() {
                         <div class="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
                             <?php $img = is_array($producto) ? ($producto['imagen_principal'] ?? '') : ($producto->imagen_principal ?? ''); ?>
                             <?php if ($img): ?>
-                            <img src="/assets/uploads/<?= esc($img) ?>" class="h-9 w-9 object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                            <button type="button" data-ampliar data-src="/assets/uploads/<?= esc($img, 'attr') ?>" data-titulo="<?= esc($pNombre, 'attr') ?>" data-codigo="<?= esc($pCodigo, 'attr') ?>"
+                                    class="h-9 w-9 cursor-zoom-in hover:ring-2 hover:ring-sky-400 rounded-lg overflow-hidden transition" title="Ver la foto en grande" aria-label="Ver la foto de <?= esc($pNombre, 'attr') ?> en grande">
+                                <img src="/assets/uploads/<?= esc($img) ?>" alt="" class="h-9 w-9 object-cover" onerror="this.parentElement.style.display='none';this.parentElement.nextElementSibling.style.display='flex'">
+                            </button>
                             <i class="fas fa-box text-gray-400 text-sm hidden"></i>
                             <?php else: ?>
                             <i class="fas fa-box text-gray-400 text-sm"></i>
@@ -219,6 +223,9 @@ function posCatFilter() {
                         </div>
                         <div>
                             <a href="/inventario/<?= $pId ?>" class="text-sm font-semibold text-gray-900 hover:text-sky-500 transition-colors leading-tight"><?= esc($pNombre) ?></a>
+                            <?php if ((is_array($producto) ? ($producto['estado'] ?? 'activo') : ($producto->estado ?? 'activo')) === 'inactivo'): ?>
+                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 ml-1 align-middle" title="Producto inactivo"><i class="fas fa-eye-slash"></i> Inactivo</span>
+                            <?php endif; ?>
                             <?php $vence = \App\Libraries\InventarioService::estadoVencimiento(is_array($producto) ? ($producto['fecha_vencimiento'] ?? null) : ($producto->fecha_vencimiento ?? null)); ?>
                             <?php if ($vence): ?>
                             <div class="text-[11px] font-semibold <?= $vence['nivel'] === 'vencido' ? 'text-red-600' : ($vence['nivel'] === 'pronto' ? 'text-orange-600' : 'text-gray-400') ?>"><i class="fas fa-hourglass-half mr-1"></i><?= esc($vence['texto']) ?></div>
@@ -255,7 +262,7 @@ function posCatFilter() {
                         elseif ($stockMin > 0 && $stock <= $stockMin)   { $dispIc = ['fa-exclamation-circle', 'text-amber-500', 'Stock bajo']; }
                         else                                            { $dispIc = ['fa-check-circle', 'text-emerald-500', 'En stock']; }
                     ?>
-                    <div class="text-sm <?= $stockColor ?> flex items-center gap-1.5"><span><?= rtrim(rtrim(number_format((float) $stock, 2), '0'), '.') ?> <?= esc(\App\Libraries\ProductoService::abreviatura($umProd)) ?></span><i class="fas <?= $dispIc[0] ?> <?= $dispIc[1] ?> text-xs" title="<?= $dispIc[2] ?>"></i></div>
+                    <div class="text-sm <?= $stockColor ?> flex items-center gap-1.5"><span><?= rtrim(rtrim(number_format((float) $stock, 2), '0'), '.') ?> <?= esc(\App\Libraries\ProductoService::abreviatura($umProd)) ?></span><i class="fas <?= $dispIc[0] ?> <?= $dispIc[1] ?> text-xs" title="<?= $dispIc[2] ?>" aria-label="<?= $dispIc[2] ?>"></i></div>
                     <?php if ($dStock = \App\Libraries\ProductoService::desglose((float) $stock, (array) (is_array($producto) ? ($producto['presentaciones'] ?? []) : ($producto->presentaciones ?? [])), $umProd)): ?>
                     <div class="text-xs font-medium text-sky-700"><?= esc($dStock) ?></div>
                     <?php endif; ?>
@@ -263,22 +270,22 @@ function posCatFilter() {
                         <?php if ($cantDepositos == 1): ?>
                             <?= esc($depNombre) ?>
                         <?php elseif ($cantDepositos > 1): ?>
-                            <span class="text-sky-500 font-medium"><?= $cantDepositos ?> depósitos</span>
+                            <span class="text-sky-500 font-medium" title="<?= (int) $cantDepositos ?> depósitos" aria-label="<?= (int) $cantDepositos ?> depósitos"><i class="fas fa-warehouse mr-0.5"></i><?= (int) $cantDepositos ?></span>
                         <?php else: ?>
-                            Sin inventario
+                            <i class="fas fa-box-open text-gray-300" title="Sin inventario" aria-label="Sin inventario"></i>
                         <?php endif; ?>
                     </div>
                 </td>
                 <td class="px-3 py-3 whitespace-nowrap text-right text-sm">
                     <div class="flex justify-end gap-1.5">
-                        <a href="/inventario/<?= $pId ?>" class="w-8 h-8 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center justify-center shadow-sm shadow-blue-500/30" title="Ver"><i class="fas fa-eye text-xs"></i></a>
+                        <a href="/inventario/<?= $pId ?>" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-center" title="Ver producto" aria-label="Ver producto"><i class="fas fa-eye text-xs"></i></a>
                         <?php if (\App\Libraries\Auth::can('productos.editar')): ?>
-                        <a href="/inventario/<?= $pId ?>/editar" class="w-8 h-8 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center justify-center shadow-sm shadow-amber-500/30" title="Editar"><i class="fas fa-edit text-xs"></i></a>
+                        <a href="/inventario/<?= $pId ?>/editar" class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white transition-colors flex items-center justify-center" title="Editar producto" aria-label="Editar producto"><i class="fas fa-pen text-xs"></i></a>
                         <?php endif; ?>
                         <?php if (\App\Libraries\Auth::can('productos.eliminar')): ?>
                         <form method="post" action="/inventario/<?= $pId ?>/eliminar" class="inline" onsubmit="return confirm('¿Eliminar este producto?')">
                             <?= csrf_field() ?>
-                            <button type="submit" class="w-8 h-8 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center shadow-sm shadow-red-500/30" title="Eliminar"><i class="fas fa-trash text-xs"></i></button>
+                            <button type="submit" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 hover:bg-red-500 hover:text-white transition-colors flex items-center justify-center" title="Eliminar producto" aria-label="Eliminar producto"><i class="fas fa-trash text-xs"></i></button>
                         </form>
                         <?php endif; ?>
                     </div>
@@ -308,6 +315,15 @@ function posCatFilter() {
 
 <?php $this->section('extra_js'); ?>
 <script>
+    // El filtro de estado conserva lo escrito en el buscador y la categoría elegida
+    document.querySelectorAll('#search-form [data-filtro]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+            e.preventDefault();
+            var f = document.getElementById('search-form');
+            f.elements[a.dataset.filtro].value = a.dataset.valor;
+            f.submit();
+        });
+    });
     let searchTimeout;
     const searchInput = document.getElementById('search-input');
     if (searchInput) {

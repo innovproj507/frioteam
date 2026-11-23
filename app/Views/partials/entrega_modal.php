@@ -22,11 +22,11 @@
         document.body.style.overflow = '';
     };
 
-    window.verEntrega = async function (id) {
+    window.verEntrega = async function (id, bodega) {
         cont.innerHTML = '<div class="py-16 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Cargando entrega…</div>';
         modal.classList.remove('hidden'); modal.classList.add('flex'); document.body.style.overflow = 'hidden';
         try {
-            const r = await fetch('/entregas/' + encodeURIComponent(id) + '/modal', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const r = await fetch('/entregas/' + encodeURIComponent(id) + '/modal' + (bodega ? '?bodega=1' : ''), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             if (!r.ok) throw new Error('No se pudo cargar la entrega');
             cont.innerHTML = await r.text();
         } catch (e) {
@@ -34,10 +34,10 @@
         }
     };
 
-    window.imprimirEntregaModal = async function (id, btn) {
+    window.imprimirEntregaModal = async function (id, btn, bodega) {
         const html = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Imprimiendo…';
         try {
-            const r = await fetch('/entregas/' + id + '/imprimir', {
+            const r = await fetch('/entregas/' + id + '/imprimir' + (bodega ? '?bodega=1' : ''), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '<?= csrf_hash() ?>', 'X-Requested-With': 'XMLHttpRequest' },
                 body: '{}'

@@ -3,46 +3,6 @@
 
 <?php $s = $stats ?? []; ?>
 
-<!-- Tarjetas de métricas -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-sky-500 to-sky-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Total</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['total'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-users"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Activos</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['activos'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-user-check"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-slate-500 to-slate-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Inactivos</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['inactivos'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-user-slash"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-red-500 to-red-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Saldo Pendiente</p>
-                <h3 class="text-xl font-extrabold mt-1 truncate">$<?= number_format((float)($s['saldo_total'] ?? 0), 2) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-sack-dollar"></i></span>
-        </div>
-    </div>
-</div>
-
 <!-- Barra de búsqueda -->
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
     <form method="GET" id="search-form" class="flex flex-wrap items-end gap-3">
@@ -61,24 +21,40 @@
             </div>
         </div>
 
-        <div class="min-w-28">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Estado</label>
-            <select name="estado" onchange="this.form.submit()"
-                class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
-                <option value="">Todos</option>
-                <option value="activo" <?= ($estado_filtro ?? '') === 'activo' ? 'selected' : '' ?>>Activos</option>
-                <option value="inactivo" <?= ($estado_filtro ?? '') === 'inactivo' ? 'selected' : '' ?>>Inactivos</option>
-            </select>
+        <?php
+        // Los filtros de estado y tipo son enlaces: conservan la búsqueda y la cantidad por página
+        $urlFiltro = fn (array $x) => '/clientes?' . http_build_query(array_filter(array_merge([
+            'buscar' => $buscar ?? '', 'estado' => $estado_filtro ?? '', 'tipo' => $tipo_filtro ?? '', 'por_pagina' => $pagination['per_page'] ?? 25,
+        ], $x), fn ($v) => $v !== '' && $v !== null));
+        $chip = 'inline-flex items-center justify-center gap-1 h-8 min-w-8 px-2.5 rounded-lg text-xs font-semibold transition-colors';
+        $estadoSel = $estado_filtro ?? '';
+        $tipoSel   = $tipo_filtro ?? '';
+        ?>
+        <input type="hidden" name="estado" value="<?= esc($estadoSel) ?>">
+        <input type="hidden" name="tipo" value="<?= esc($tipoSel) ?>">
+
+        <div>
+            <p class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-toggle-on mr-1"></i>Estado</p>
+            <div class="inline-flex bg-gray-50 border border-gray-100 rounded-xl p-0.5 gap-0.5">
+                <a href="<?= $urlFiltro(['estado' => '']) ?>" data-filtro="estado" data-valor="" class="<?= $chip ?> <?= $estadoSel === '' ? 'bg-slate-800 text-white' : 'text-gray-500 hover:text-slate-800' ?>" title="Todos los estados">Todos</a>
+                <a href="<?= $urlFiltro(['estado' => 'activo']) ?>" data-filtro="estado" data-valor="activo" class="<?= $chip ?> <?= $estadoSel === 'activo' ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:text-emerald-600' ?>" title="Solo activos" aria-label="Solo activos">
+                    <i class="fas fa-circle-check"></i> Activos <span class="opacity-80"><?= (int) ($s['activos'] ?? 0) ?></span></a>
+                <a href="<?= $urlFiltro(['estado' => 'inactivo']) ?>" data-filtro="estado" data-valor="inactivo" class="<?= $chip ?> <?= $estadoSel === 'inactivo' ? 'bg-red-500 text-white' : 'text-gray-500 hover:text-red-500' ?>" title="Solo inactivos" aria-label="Solo inactivos">
+                    <i class="fas fa-circle-xmark"></i> Inactivos <span class="opacity-80"><?= (int) ($s['inactivos'] ?? 0) ?></span></a>
+                <?php if (!empty($ve_eliminados)): ?>
+                <a href="<?= $urlFiltro(['estado' => 'eliminado']) ?>" data-filtro="estado" data-valor="eliminado" title="Clientes eliminados (solo los ve el administrador principal)" aria-label="Clientes eliminados" class="<?= $chip ?> <?= $estadoSel === 'eliminado' ? 'bg-slate-600 text-white' : 'text-gray-400 hover:text-slate-700' ?>">
+                    <i class="fas fa-trash-can"></i> Eliminados <span class="opacity-80"><?= (int) ($s['eliminados'] ?? 0) ?></span></a>
+                <?php endif; ?>
+            </div>
         </div>
 
-        <div class="min-w-28">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Tipo</label>
-            <select name="tipo" onchange="this.form.submit()"
-                class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
-                <option value="">Todos</option>
-                <option value="natural" <?= ($tipo_filtro ?? '') === 'natural' ? 'selected' : '' ?>>Natural</option>
-                <option value="juridico" <?= ($tipo_filtro ?? '') === 'juridico' ? 'selected' : '' ?>>Jurídico</option>
-            </select>
+        <div>
+            <p class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-tag mr-1"></i>Tipo</p>
+            <div class="inline-flex bg-gray-50 border border-gray-100 rounded-xl p-0.5 gap-0.5">
+                <a href="<?= $urlFiltro(['tipo' => '']) ?>" data-filtro="tipo" data-valor="" class="<?= $chip ?> <?= $tipoSel === '' ? 'bg-slate-800 text-white' : 'text-gray-500 hover:text-slate-800' ?>" title="Todos los tipos">Todos</a>
+                <a href="<?= $urlFiltro(['tipo' => 'natural']) ?>" data-filtro="tipo" data-valor="natural" class="<?= $chip ?> <?= $tipoSel === 'natural' ? 'bg-sky-500 text-white' : 'text-gray-500 hover:text-sky-600' ?>" title="Personas (natural)" aria-label="Personas (natural)"><i class="fas fa-user"></i> Natural</a>
+                <a href="<?= $urlFiltro(['tipo' => 'juridico']) ?>" data-filtro="tipo" data-valor="juridico" class="<?= $chip ?> <?= $tipoSel === 'juridico' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-blue-600' ?>" title="Empresas (jurídico)" aria-label="Empresas (jurídico)"><i class="fas fa-building"></i> Jurídico</a>
+            </div>
         </div>
 
         <div class="min-w-24">
@@ -107,7 +83,8 @@
             <?php endif; ?>
             <?php if (\App\Libraries\Auth::can('clientes.editar')):
                 try { $nSolWeb = (int) \App\Libraries\Db::value("SELECT COUNT(*) FROM tienda_solicitudes WHERE estado = 'pendiente'"); } catch (\Throwable $e) { $nSolWeb = 0; } ?>
-            <a href="/clientes/solicitudes-web" class="inline-flex items-center gap-1.5 px-4 py-2 border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition">
+            <a href="/clientes/solicitudes-web" class="relative inline-flex items-center gap-1.5 px-4 py-2 border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition"
+               title="Solicitudes de acceso de la tienda web<?= $nSolWeb > 0 ? ' (' . $nSolWeb . ' pendientes)' : '' ?>">
                 <i class="fas fa-globe"></i> Solicitudes web<?php if ($nSolWeb > 0): ?> <span class="bg-rose-500 text-white text-xs font-bold rounded-full px-2"><?= $nSolWeb ?></span><?php endif; ?>
             </a>
             <?php endif; ?>
@@ -135,8 +112,8 @@
                 <th class="px-5 py-3.5 bg-gray-50/80">Cliente</th>
                 <th class="px-5 py-3.5 bg-gray-50/80">Código / RUC</th>
                 <th class="px-5 py-3.5 bg-gray-50/80">Contacto</th>
-                <th class="px-5 py-3.5 bg-gray-50/80 text-center">Tipo</th>
-                <th class="px-5 py-3.5 bg-gray-50/80 text-center">Estado</th>
+                <th class="px-5 py-3.5 bg-gray-50/80 text-center" ><i class="fas fa-tag mr-1"></i>Tipo</th>
+                <th class="px-5 py-3.5 bg-gray-50/80 text-center" ><i class="fas fa-toggle-on mr-1"></i>Estado</th>
                 <th class="px-5 py-3.5 bg-gray-50/80 text-right">Saldo</th>
                 <th class="px-5 py-3.5 bg-gray-50/80 text-center">Acciones</th>
             </tr>
@@ -146,9 +123,14 @@
             <tr class="hover:bg-sky-50/40 transition-colors group">
 
                 <!-- Cliente -->
-                <td class="px-5 py-3.5">
+                <td class="px-5 py-3.5 <?= $cliente->estado !== 'activo' ? 'opacity-50' : '' ?>">
                     <div class="flex items-center gap-3">
+                        <?php if (!empty($cliente->foto)): ?>
+                        <button type="button" data-ampliar data-src="/assets/uploads/<?= esc($cliente->foto, 'attr') ?>" data-titulo="<?= esc($cliente->nombre, 'attr') ?>" data-codigo="<?= esc((string) $cliente->codigo, 'attr') ?>"
+                                title="Ampliar foto" class="w-8 h-8 rounded-lg overflow-hidden shrink-0 cursor-zoom-in"><img src="/assets/uploads/<?= esc($cliente->foto, 'attr') ?>" alt="" class="w-full h-full object-cover"></button>
+                        <?php else: ?>
                         <span class="w-8 h-8 rounded-lg bg-sky-500 text-white flex items-center justify-center text-xs shrink-0 shadow-sm shadow-sky-500/30"><i class="fas fa-user"></i></span>
+                        <?php endif; ?>
                         <div>
                             <p class="text-sm font-bold text-gray-800"><?= esc($cliente->nombre) ?></p>
                             <p class="text-xs text-gray-400"><?= esc($cliente->email ?: '—') ?></p>
@@ -157,7 +139,7 @@
                 </td>
 
                 <!-- Código / RUC -->
-                <td class="px-5 py-3.5">
+                <td class="px-5 py-3.5 <?= $cliente->estado !== 'activo' ? 'opacity-50' : '' ?>">
                     <p class="text-xs font-mono text-gray-500"><?= esc($cliente->codigo ?: '—') ?></p>
                     <?php if (!empty($cliente->ruc)): ?>
                     <p class="text-xs text-gray-400">RUC: <?= esc($cliente->ruc) ?></p>
@@ -165,24 +147,28 @@
                 </td>
 
                 <!-- Contacto -->
-                <td class="px-5 py-3.5 text-sm text-gray-600">
-                    <?= esc($cliente->telefono ?: '—') ?>
+                <td class="px-5 py-3.5 text-sm text-gray-600 <?= $cliente->estado !== 'activo' ? 'opacity-50' : '' ?>">
+                    <?php if (!empty($cliente->telefono)): ?><i class="fas fa-phone text-gray-300 text-xs mr-1.5"></i><?= esc($cliente->telefono) ?><?php else: ?>—<?php endif; ?>
                 </td>
 
-                <!-- Tipo -->
+                <!-- Tipo: ícono -->
                 <td class="px-5 py-3.5 text-center">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold text-white
-                        <?= ($cliente->tipo ?? '') === 'juridico' ? 'bg-blue-500' : 'bg-sky-500' ?>">
-                        <?= ($cliente->tipo ?? '') === 'juridico' ? 'Jurídico' : 'Natural' ?>
-                    </span>
+                    <?php if (($cliente->tipo ?? '') === 'juridico'): ?>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-blue-50 text-blue-600" title="Jurídico (empresa)"><i class="fas fa-building text-[10px]"></i> Jurídico</span>
+                    <?php else: ?>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-sky-50 text-sky-600" title="Natural (persona)"><i class="fas fa-user text-[10px]"></i> Natural</span>
+                    <?php endif; ?>
                 </td>
 
-                <!-- Estado -->
+                <!-- Estado: ícono -->
                 <td class="px-5 py-3.5 text-center">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold text-white
-                        <?= $cliente->estado === 'activo' ? 'bg-emerald-500' : 'bg-red-500' ?>">
-                        <?= ucfirst(esc($cliente->estado)) ?>
-                    </span>
+                    <?php if ($cliente->estado === 'activo'): ?>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-emerald-100 text-emerald-600" title="Activo"><i class="fas fa-check text-[10px]"></i> Activo</span>
+                    <?php elseif ($cliente->estado === 'eliminado'): ?>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-slate-200 text-slate-600" title="Eliminado (oculto para los demás usuarios)"><i class="fas fa-trash-can text-[10px]"></i> Eliminado</span>
+                    <?php else: ?>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap bg-red-100 text-red-500" title="Inactivo"><i class="fas fa-xmark text-[10px]"></i> Inactivo</span>
+                    <?php endif; ?>
                 </td>
 
                 <!-- Saldo -->
@@ -191,22 +177,33 @@
                     $<?= number_format((float)($cliente->saldo_pendiente ?? 0), 2) ?>
                 </td>
 
-                <!-- Acciones -->
-                <td class="px-5 py-3.5 text-center">
-                    <div class="flex items-center justify-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <a href="/clientes/<?= $cliente->cliente_id ?>" title="Ver detalle"
-                           class="w-8 h-8 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center justify-center shadow-sm shadow-blue-500/30"><i class="fas fa-eye text-xs"></i></a>
-                        <a href="/clientes/<?= $cliente->cliente_id ?>/editar" title="Editar"
-                           class="w-8 h-8 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center justify-center shadow-sm shadow-amber-500/30"><i class="fas fa-edit text-xs"></i></a>
-                        <a href="/ventas/nueva?cliente=<?= $cliente->cliente_id ?>" title="Nueva Venta"
-                           class="w-8 h-8 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors flex items-center justify-center shadow-sm shadow-emerald-500/30"><i class="fas fa-shopping-cart text-xs"></i></a>
-                        <form method="post" action="/clientes/<?= $cliente->cliente_id ?>/eliminar" class="inline"
-                              onsubmit="return confirm('¿Eliminar a <?= esc(addslashes($cliente->nombre)) ?>?')">
+                <!-- Acciones: solo íconos -->
+                <td class="px-5 py-3.5">
+                    <?php if ($cliente->estado === 'eliminado'): ?>
+                    <div class="flex items-center justify-center gap-1.5">
+                        <form method="post" action="/clientes/<?= (int) $cliente->cliente_id ?>/restaurar" class="inline"
+                              onsubmit="return confirm('¿Restaurar a <?= esc($cliente->nombre, 'js') ?>? Volverá a aparecer en las listas.')">
                             <?= csrf_field() ?>
-                            <button type="submit" title="Eliminar"
-                                    class="w-8 h-8 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center shadow-sm shadow-red-500/30"><i class="fas fa-trash text-xs"></i></button>
+                            <button type="submit" title="Restaurar cliente (volver a mostrarlo)" aria-label="Restaurar cliente"
+                                    class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors flex items-center justify-center"><i class="fas fa-rotate-left text-xs"></i></button>
                         </form>
                     </div>
+                    <?php else: ?>
+                    <div class="flex items-center justify-center gap-1.5">
+                        <a href="/clientes/<?= (int) $cliente->cliente_id ?>" title="Ver ficha del cliente" aria-label="Ver ficha del cliente"
+                           class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-center"><i class="fas fa-eye text-xs"></i></a>
+                        <a href="/clientes/<?= (int) $cliente->cliente_id ?>/editar" title="Editar cliente" aria-label="Editar cliente"
+                           class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white transition-colors flex items-center justify-center"><i class="fas fa-pen text-xs"></i></a>
+                        <a href="/ventas/nueva?cliente=<?= (int) $cliente->cliente_id ?>" title="Nueva venta a este cliente" aria-label="Nueva venta a este cliente"
+                           class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors flex items-center justify-center"><i class="fas fa-cart-shopping text-xs"></i></a>
+                        <form method="post" action="/clientes/<?= (int) $cliente->cliente_id ?>/eliminar" class="inline"
+                              onsubmit="return confirm('¿Eliminar a <?= esc($cliente->nombre, 'js') ?>?')">
+                            <?= csrf_field() ?>
+                            <button type="submit" title="Eliminar cliente" aria-label="Eliminar cliente"
+                                    class="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 hover:bg-red-500 hover:text-white transition-colors flex items-center justify-center"><i class="fas fa-trash text-xs"></i></button>
+                        </form>
+                    </div>
+                    <?php endif; ?>
                 </td>
             </tr>
             <?php endforeach; ?>
@@ -246,6 +243,15 @@
 
 <?php $this->section('extra_js'); ?>
 <script>
+    // Los filtros de estado/tipo usan lo que hay escrito en el buscador en este momento
+    document.querySelectorAll('#search-form [data-filtro]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+            e.preventDefault();
+            var f = document.getElementById('search-form');
+            f.elements[a.dataset.filtro].value = a.dataset.valor;
+            f.submit();
+        });
+    });
     var searchTimeout;
     var searchInput = document.getElementById('search-input');
     if (searchInput) {

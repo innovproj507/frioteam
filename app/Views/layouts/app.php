@@ -135,11 +135,22 @@ $breadcrumbLabel = $page_title ?? 'Sistema POS';
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        // El menú se ve completo (con textos) por defecto. Solo arranca contraído si la persona lo contrajo antes.
+        // Esta marca se pone antes de pintar para que no haya parpadeo; Alpine la quita al arrancar.
+        (function () {
+            try {
+                var g = localStorage.getItem('sidebarCollapsed');
+                if (g === '1') document.documentElement.classList.add('sb-min');
+            } catch (e) {}
+        })();
         function sidebarState() {
             return {
                 sidebarCollapsed: false,
                 init: function() {
-                    try { this.sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === '1'; } catch (e) {}
+                    var g = null;
+                    try { g = localStorage.getItem('sidebarCollapsed'); } catch (e) {}
+                    this.sidebarCollapsed = g === '1';
+                    document.documentElement.classList.remove('sb-min');
                 },
                 toggleSidebar: function() {
                     this.sidebarCollapsed = !this.sidebarCollapsed;
@@ -164,6 +175,21 @@ $breadcrumbLabel = $page_title ?? 'Sistema POS';
         .nav-section { font-size:0.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#64748b; padding:0 .75rem; margin:1.25rem 0 .4rem; }
         .nav-section:first-child { margin-top:.5rem; }
         [x-cloak] { display:none !important; }
+
+        /* ── Pantallas chicas (1366×768) y medianas (1600×900) ─────────────────────────── */
+        html.sb-min aside { width:5rem; }                       /* menú contraído desde el primer pintado */
+        /* Una tabla dentro de una tarjeta con overflow-hidden nunca se recorta: ofrece scroll horizontal */
+        main .overflow-hidden:has(> table) { overflow-x:auto; }
+        @media (max-width:1499px) {
+            main, header > div, .pagina-titulo { padding-left:1rem !important; padding-right:1rem !important; }
+            main table th, main table td { padding-left:.75rem !important; padding-right:.75rem !important; }
+        }
+        @media (max-width:1440px) { html { font-size:15px; } }   /* todo el sistema escala ~6% */
+        @media (max-height:800px) {
+            .pagina-titulo { padding-top:.6rem !important; }
+            .pagina-titulo h1 { font-size:1.125rem; }
+            main { padding-top:.6rem !important; padding-bottom:.6rem !important; }
+        }
     </style>
     <?= $this->renderSection('extra_css') ?>
 </head>
@@ -403,7 +429,7 @@ $breadcrumbLabel = $page_title ?? 'Sistema POS';
         <?php endif; ?>
 
         <!-- Encabezado de página: título grande + migas de pan (dentro del contenido, como la referencia) -->
-        <div class="px-6 pt-5 pb-1 flex items-center justify-between flex-wrap gap-2">
+        <div class="pagina-titulo px-6 pt-5 pb-1 flex items-center justify-between flex-wrap gap-2">
             <div>
                 <h1 class="text-xl font-extrabold text-gray-800"><?= esc($page_title ?? 'Sistema POS') ?></h1>
                 <div class="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
@@ -473,6 +499,7 @@ $breadcrumbLabel = $page_title ?? 'Sistema POS';
             };
         })();
     </script>
+    <?= view('partials/visor_foto') ?>
     <?= $this->renderSection('extra_js') ?>
 </body>
 </html>

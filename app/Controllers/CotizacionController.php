@@ -34,8 +34,16 @@ class CotizacionController extends BaseController
         $params = [$sucursalId];
 
         if ($buscar !== '') {
-            $where .= ' AND co.numero LIKE ?';
-            $params[] = "%{$buscar}%";
+            // Por número de cotización o por nombre del cliente (varias palabras, en cualquier orden)
+            $esc      = fn (string $t) => str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $t);
+            $palabras = array_slice(preg_split('/\s+/', trim($buscar), -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, 6);
+            $porNombre = $palabras ? implode(' AND ', array_fill(0, count($palabras), 'c.nombre LIKE ?')) : '1 = 0';
+            $where .= " AND (co.numero LIKE ? OR ({$porNombre}) OR (co.cliente_id IS NULL AND 'consumidor final' LIKE ?))";
+            $params[] = '%' . $esc($buscar) . '%';
+            foreach ($palabras as $palabra) {
+                $params[] = '%' . $esc($palabra) . '%';
+            }
+            $params[] = '%' . $esc($buscar) . '%';
         }
         if ($estado !== '') {
             $where .= ' AND co.estado = ?';

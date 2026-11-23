@@ -10,30 +10,13 @@ $lista = array_map(fn ($c) => [
     'ruc'      => (string) ($c['ruc'] ?? ''),
     'telefono' => (string) ($c['telefono'] ?? ''),
     'saldo'    => (float) $c['saldo_pendiente'],
+    'eliminado' => ($c['estado'] ?? '') === 'eliminado',
     'limite'   => (float) $c['cupo_credito'],
     'ultima'   => $c['ultima_venta_credito'] ? date('d/m/Y', strtotime($c['ultima_venta_credito'])) : '',
 ], $cuentas);
 ?>
 
 <div x-data="cuentasCobrar()">
-
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-rose-500 to-rose-600 text-white">
-        <p class="text-xs font-bold text-white/80 uppercase tracking-widest">Por cobrar</p>
-        <h3 class="text-2xl font-black mt-1">$<?= number_format((float) ($stats['total_deuda'] ?? 0), 2) ?></h3>
-        <p class="text-xs text-white/80 mt-1"><?= (int) ($stats['total_deudores'] ?? 0) ?> clientes deben</p>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-        <p class="text-xs font-bold text-white/80 uppercase tracking-widest">Cobrado hoy · <?= esc($sucursal_actual['nombre'] ?? '') ?></p>
-        <h3 class="text-2xl font-black mt-1">$<?= number_format($cobradoHoy, 2) ?></h3>
-        <p class="text-xs text-white/80 mt-1 truncate"><?= $cobrosHoy ? esc(implode(' · ', array_map(fn ($c) => ucfirst(strtolower($c['forma_pago'])) . ' $' . number_format((float) $c['total'], 2), $cobrosHoy))) : 'Sin cobros todavía' ?></p>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-amber-500 to-amber-600 text-white">
-        <p class="text-xs font-bold text-white/80 uppercase tracking-widest">Deben más de su límite</p>
-        <h3 class="text-2xl font-black mt-1" x-text="clientes.filter(c => c.saldo > c.limite).length"></h3>
-        <p class="text-xs text-white/80 mt-1">clientes excedidos o sin límite</p>
-    </div>
-</div>
 
 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
     <div class="p-4 border-b border-slate-100 flex flex-wrap items-center gap-2">
@@ -42,9 +25,9 @@ $lista = array_map(fn ($c) => [
             <input type="search" x-model="q" placeholder="Buscar cliente por nombre, teléfono o RUC…" autofocus
                    class="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-200 focus:border-sky-400 outline-none">
         </div>
-        <template x-for="f in [['todos','Todos'],['excedidos','Excedidos'],['antiguos','Último crédito +30 días']]" :key="f[0]">
-            <button type="button" @click="filtro = f[0]" class="px-3 py-1.5 rounded-lg text-sm font-semibold"
-                    :class="filtro === f[0] ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" x-text="f[1]"></button>
+        <template x-for="f in [['todos','Todos','fa-list'],['excedidos','Excedidos','fa-triangle-exclamation'],['antiguos','Último crédito +30 días','fa-clock-rotate-left']]" :key="f[0]">
+            <button type="button" @click="filtro = f[0]" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold"
+                    :class="filtro === f[0] ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"><i class="fas" :class="f[2]"></i><span x-text="f[1]"></span></button>
         </template>
         <select x-model="orden" class="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white">
             <option value="saldo">Mayor deuda primero</option>
@@ -62,10 +45,10 @@ $lista = array_map(fn ($c) => [
         <table class="min-w-full divide-y divide-slate-100">
             <thead class="bg-slate-50/50">
                 <tr>
-                    <th class="px-5 py-3 text-left text-xs font-bold text-slate-400 uppercase">Cliente</th>
-                    <th class="px-5 py-3 text-right text-xs font-bold text-slate-400 uppercase">Debe</th>
-                    <th class="px-5 py-3 text-right text-xs font-bold text-slate-400 uppercase">Límite</th>
-                    <th class="px-5 py-3 text-center text-xs font-bold text-slate-400 uppercase">Último crédito</th>
+                    <th class="px-5 py-3 text-left text-xs font-bold text-slate-400 uppercase"><i class="fas fa-user mr-1"></i>Cliente</th>
+                    <th class="px-5 py-3 text-right text-xs font-bold text-slate-400 uppercase"><i class="fas fa-coins mr-1"></i>Debe</th>
+                    <th class="px-5 py-3 text-right text-xs font-bold text-slate-400 uppercase"><i class="fas fa-gauge-high mr-1"></i>Límite</th>
+                    <th class="px-5 py-3 text-center text-xs font-bold text-slate-400 uppercase"><i class="fas fa-clock-rotate-left mr-1"></i>Último crédito</th>
                     <th class="px-5 py-3"></th>
                 </tr>
             </thead>
@@ -74,28 +57,33 @@ $lista = array_map(fn ($c) => [
                     <tr class="hover:bg-slate-50/50">
                         <td class="px-5 py-3">
                             <a :href="'/clientes/' + c.id" class="text-sm font-bold text-slate-700 hover:text-sky-600" x-text="c.nombre"></a>
+                            <span x-show="c.eliminado" class="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600" title="Cliente eliminado: su deuda sigue pendiente"><i class="fas fa-trash-can"></i> Eliminado</span>
                             <div class="text-[11px] text-slate-400" x-text="[c.telefono, c.ruc].filter(Boolean).join(' · ')"></div>
                         </td>
                         <td class="px-5 py-3 text-right">
                             <span class="text-sm font-black text-rose-600" x-text="dinero(c.saldo)"></span>
                         </td>
                         <td class="px-5 py-3 text-right">
-                            <span class="text-xs" :class="c.saldo > c.limite ? 'text-rose-600 font-bold' : 'text-slate-500'"
-                                  x-text="c.limite > 0 ? dinero(c.limite) + (c.saldo > c.limite ? ' · excedido' : '') : 'sin límite'"></span>
+                            <span class="text-xs inline-flex items-center gap-1" :class="c.saldo > c.limite && c.limite > 0 ? 'text-rose-600 font-bold' : 'text-slate-500'">
+                                <template x-if="c.limite > 0"><span x-text="dinero(c.limite)"></span></template>
+                                <template x-if="!(c.limite > 0)"><span title="Sin límite de crédito"><i class="fas fa-infinity"></i> Sin límite</span></template>
+                                <template x-if="c.limite > 0 && c.saldo > c.limite"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold" title="Debe más de su límite de crédito"><i class="fas fa-triangle-exclamation"></i> Excedido</span></template>
+                            </span>
                         </td>
                         <td class="px-5 py-3 text-center text-xs text-slate-500" x-text="c.ultima || '—'"></td>
                         <td class="px-5 py-3 text-right whitespace-nowrap">
                             <?php if ($puedeCobrar): ?>
-                            <button type="button" @click="abrir(c)" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600">
-                                <i class="fas fa-hand-holding-usd"></i> Cobrar
+                            <button type="button" @click="abrir(c)" title="Cobrar" aria-label="Cobrar"
+                                    class="inline-flex w-8 h-8 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 items-center justify-center align-middle shadow-sm">
+                                <i class="fas fa-hand-holding-dollar"></i>
                             </button>
                             <?php endif; ?>
-                            <button type="button" @click="whatsapp(c)" title="Enviar estado de cuenta por WhatsApp"
+                            <button type="button" @click="whatsapp(c)" title="Enviar estado de cuenta por WhatsApp" aria-label="Enviar estado de cuenta por WhatsApp"
                                     class="inline-flex w-8 h-8 rounded-lg text-white items-center justify-center align-middle" style="background:#25D366">
                                 <i class="fab fa-whatsapp"></i>
                             </button>
-                            <a :href="'/clientes/' + c.id" title="Ver cliente" class="inline-flex w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 items-center justify-center align-middle">
-                                <i class="fas fa-chevron-right text-xs"></i>
+                            <a :href="'/clientes/' + c.id" title="Ver ficha del cliente" aria-label="Ver ficha del cliente" class="inline-flex w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white transition-colors items-center justify-center align-middle">
+                                <i class="fas fa-eye text-xs"></i>
                             </a>
                         </td>
                     </tr>

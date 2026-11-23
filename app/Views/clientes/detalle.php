@@ -30,11 +30,19 @@
 
 <!-- Document card -->
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
-    <h2 class="text-3xl font-bold text-gray-900 mb-1"><?= esc($cliente->nombre) ?></h2>
-    <p class="text-sm text-gray-400 mb-6">
-        <span class="capitalize"><?= esc($cliente->tipo) ?></span>
-        <?php if ($cliente->codigo): ?> · <span class="font-mono"><?= esc($cliente->codigo) ?></span><?php endif; ?>
-    </p>
+    <div class="flex items-center gap-4 mb-6">
+        <?php if (!empty($cliente->foto)): ?>
+        <button type="button" data-ampliar data-src="/assets/uploads/<?= esc($cliente->foto, 'attr') ?>" data-titulo="<?= esc($cliente->nombre, 'attr') ?>" data-codigo="<?= esc((string) $cliente->codigo, 'attr') ?>"
+                title="Ampliar foto" class="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100 shrink-0 cursor-zoom-in"><img src="/assets/uploads/<?= esc($cliente->foto, 'attr') ?>" alt="" class="w-full h-full object-cover"></button>
+        <?php endif; ?>
+        <div>
+            <h2 class="text-3xl font-bold text-gray-900 mb-1"><?= esc($cliente->nombre) ?></h2>
+            <p class="text-sm text-gray-400">
+                <span class="capitalize"><?= esc($cliente->tipo) ?></span>
+                <?php if ($cliente->codigo): ?> · <span class="font-mono"><?= esc($cliente->codigo) ?></span><?php endif; ?>
+            </p>
+        </div>
+    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-16">
         <div>

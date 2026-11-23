@@ -100,7 +100,7 @@ final class EntregaVenta
     }
 
     /** Todo lo necesario para ver / imprimir una entrega, o null si no existe en esa sucursal. */
-    public static function datos(int $entregaId, int $sucursalId): ?array
+    public static function datos(int $entregaId, int $sucursalId, bool $bodega = false): ?array
     {
         $e = Db::row(
             "SELECT e.*, v.numero_factura, v.empresa_id AS venta_empresa_id,
@@ -115,18 +115,37 @@ final class EntregaVenta
             return null;
         }
         $items = Db::all(
-            "SELECT p.nombre, p.codigo, d.cantidad, d.unidad_nombre
+            "SELECT p.producto_id, p.nombre, p.codigo, d.cantidad, d.unidad_nombre
              FROM ventas_detalle d JOIN productos p ON p.producto_id = d.producto_id
              WHERE d.venta_id = ? ORDER BY d.detalle_id",
             [$e['venta_id']]
         );
 
+        $depositos = Db::all("SELECT deposito_id, nombre FROM depositos WHERE sucursal_id = ? AND estado = 'activo' ORDER BY deposito_id", [$sucursalId]);
+
+        // Hoja para bodega: en la columna de cada depósito va lo que hay en existencia; si no hay, queda en blanco
+        if ($bodega && $items && $depositos) {
+            $ids  = array_values(array_unique(array_map(fn ($i) => (int) $i['producto_id'], $items)));
+            $dep  = array_map(fn ($d) => (int) $d['deposito_id'], $depositos);
+            $ph   = implode(',', array_fill(0, count($ids), '?'));
+            $ph2  = implode(',', array_fill(0, count($dep), '?'));
+            $stock = [];
+            foreach (Db::all("SELECT producto_id, deposito_id, SUM(existencia) AS existencia, MAX(ubicacion) AS ubicacion FROM inventario WHERE producto_id IN ($ph) AND deposito_id IN ($ph2) GROUP BY producto_id, deposito_id", array_merge($ids, $dep)) as $r) {
+                $stock[(int) $r['producto_id']][(int) $r['deposito_id']] = ['existencia' => (float) $r['existencia'], 'ubicacion' => trim((string) ($r['ubicacion'] ?? ''))];
+            }
+            foreach ($items as &$it) {
+                $it['stock'] = $stock[(int) $it['producto_id']] ?? [];
+            }
+            unset($it);
+        }
+
         return [
+            'bodega'     => $bodega,
             'entrega'    => $e,
             'items'      => $items,
             'empresa'    => Db::row("SELECT razon_social, nombre_comercial, ruc, dv, sitio_web FROM companies WHERE empresa_id = ?", [$e['empresa_id']]) ?? [],
             // Columnas en blanco, una por depósito, para que anoten de dónde sacaron cada producto
-            'depositos'  => Db::all("SELECT deposito_id, nombre FROM depositos WHERE sucursal_id = ? AND estado = 'activo' ORDER BY deposito_id", [$sucursalId]),
+            'depositos'  => $depositos,
             'preparado'  => trim((string) ($e['preparado_nombre'] ?: ($e['preparado_usuario'] ?? ''))),
         ];
     }
@@ -148,20 +167,20 @@ final class EntregaVenta
     public static function nombreArchivo(array $datos): string
     {
         $numero = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($datos['entrega']['numero'] ?? 'entrega')) ?: 'entrega';
-        return 'Entrega_' . $numero . '.pdf';
+        return (!empty($datos['bodega']) ? 'Bodega_' : 'Entrega_') . $numero . '.pdf';
     }
 
     /** Imprime la entrega en la Ricoh por CUPS. Devuelve el id del trabajo. */
-    public static function imprimir(int $entregaId, int $sucursalId): string
+    public static function imprimir(int $entregaId, int $sucursalId, bool $bodega = false): string
     {
-        $datos = self::datos($entregaId, $sucursalId);
+        $datos = self::datos($entregaId, $sucursalId, $bodega);
         if (!$datos) {
             throw new \RuntimeException('Entrega no encontrada.');
         }
         $papel = ImpresionCups::papel();
         return ImpresionCups::imprimirPdf(
             self::pdf($datos, $papel),
-            'Entrega ' . $datos['entrega']['numero'],
+            ($bodega ? 'Bodega ' : 'Entrega ') . $datos['entrega']['numero'],
             ImpresionCups::cola(),
             $papel === 'a4' ? 'A4' : 'Letter'
         );

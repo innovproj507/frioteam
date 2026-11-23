@@ -3,52 +3,12 @@
 
 <?php $s = $stats ?? []; $traslados = $traslados ?? []; $pagination = $pagination ?? []; ?>
 
-<!-- Tarjetas de métricas -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-sky-500 to-sky-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Total</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['total'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-exchange-alt"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-amber-500 to-amber-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">En tránsito</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['en_transito'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-truck-moving"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Recibidos</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['recibidos'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-check-circle"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-red-500 to-red-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Cancelados</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['cancelados'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-ban"></i></span>
-        </div>
-    </div>
-</div>
-
 <!-- Barra de búsqueda -->
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
     <form method="GET" id="search-form" class="flex flex-wrap items-end gap-3">
 
         <div class="flex-1 min-w-48">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Buscar por usuario</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-user mr-1"></i>Buscar por usuario</label>
             <div class="relative">
                 <i class="fas fa-user absolute left-0 top-2 text-gray-400 text-xs"></i>
                 <input type="text" name="buscar" id="search-input"
@@ -62,7 +22,7 @@
         </div>
 
         <div class="min-w-28">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Por página</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-list-ol mr-1"></i>Por página</label>
             <select name="por_pagina" onchange="this.form.submit()"
                 class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
                 <?php foreach ([10, 25, 50, 100] as $n): ?>
@@ -80,9 +40,9 @@
             </span>
             <?php if (!empty($buscar)): ?>
             <a href="/inventario/traslados?lista=1"
-                class="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 text-gray-400 rounded-lg text-sm hover:bg-gray-50 transition"
-                title="Limpiar búsqueda">
-                <i class="fas fa-times"></i>
+                class="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+                title="Quitar la búsqueda">
+                <i class="fas fa-xmark"></i> Limpiar
             </a>
             <?php endif; ?>
             <a href="/inventario/traslados/nuevo"
@@ -106,11 +66,11 @@
     <table class="w-full text-sm">
         <thead>
             <tr class="border-b border-gray-100 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                <th class="px-5 py-3.5 bg-gray-50/80">#</th>
-                <th class="px-5 py-3.5 bg-gray-50/80">Origen</th>
-                <th class="px-5 py-3.5 bg-gray-50/80">Destino</th>
-                <th class="px-5 py-3.5 bg-gray-50/80 text-center">Estado</th>
-                <th class="px-5 py-3.5 bg-gray-50/80">Enviado por</th>
+                <th class="px-5 py-3.5 bg-gray-50/80"><i class="fas fa-hashtag mr-1"></i>Traslado</th>
+                <th class="px-5 py-3.5 bg-gray-50/80"><i class="fas fa-warehouse mr-1"></i>Origen</th>
+                <th class="px-5 py-3.5 bg-gray-50/80"><i class="fas fa-location-arrow mr-1"></i>Destino</th>
+                <th class="px-5 py-3.5 bg-gray-50/80 text-center"><i class="fas fa-toggle-on mr-1"></i>Estado</th>
+                <th class="px-5 py-3.5 bg-gray-50/80"><i class="fas fa-user mr-1"></i>Enviado por</th>
                 <th class="px-5 py-3.5 bg-gray-50/80 text-center">Acciones</th>
             </tr>
         </thead>
@@ -118,19 +78,19 @@
             <?php foreach ($traslados as $t): ?>
             <?php
                 $badgeMap = [
-                    'recibido'    => 'bg-emerald-500',
-                    'en_transito' => 'bg-amber-500',
-                    'borrador'    => 'bg-gray-400',
-                    'cancelado'   => 'bg-red-500',
+                    'recibido'    => ['bg-emerald-100 text-emerald-600', 'fa-check',        'Recibido'],
+                    'en_transito' => ['bg-amber-100 text-amber-600',     'fa-truck-moving', 'En tránsito'],
+                    'borrador'    => ['bg-gray-100 text-gray-500',       'fa-pen-ruler',    'Borrador'],
+                    'cancelado'   => ['bg-red-100 text-red-500',         'fa-ban',          'Cancelado'],
                 ];
-                $badgeClass = $badgeMap[$t['estado']] ?? 'bg-gray-400';
+                [$badgeClass, $badgeIcon, $badgeTxt] = $badgeMap[$t['estado']] ?? ['bg-gray-100 text-gray-500', 'fa-circle-question', ucfirst(str_replace('_', ' ', $t['estado']))];
             ?>
             <tr class="hover:bg-sky-50/40 transition-colors group">
 
                 <!-- # -->
                 <td class="px-5 py-3.5">
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-sky-500/30">
+                        <div class="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
                             <i class="fas fa-exchange-alt text-xs"></i>
                         </div>
                         <span class="font-mono text-xs text-gray-400">#<?= $t['traslado_id'] ?></span>
@@ -152,9 +112,7 @@
 
                 <!-- Estado -->
                 <td class="px-5 py-3.5 text-center">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold text-white <?= $badgeClass ?>">
-                        <?= ucfirst(str_replace('_', ' ', $t['estado'])) ?>
-                    </span>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap <?= $badgeClass ?>" title="<?= esc($badgeTxt) ?>"><i class="fas <?= $badgeIcon ?> text-[10px]"></i> <?= esc($badgeTxt) ?></span>
                 </td>
 
                 <!-- Enviado por -->
@@ -167,9 +125,9 @@
                 <td class="px-5 py-3.5 text-center">
                     <div class="flex items-center justify-center">
                         <?php if ($t['estado'] === 'en_transito'): ?>
-                        <button @click="recibirTraslado(<?= $t['traslado_id'] ?>)"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition shadow-sm shadow-emerald-500/30">
-                            <i class="fas fa-check"></i> Confirmar
+                        <button type="button" @click="recibirTraslado(<?= (int) $t['traslado_id'] ?>)" title="Confirmar la recepción" aria-label="Confirmar la recepción"
+                            class="w-8 h-8 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors flex items-center justify-center shadow-sm">
+                            <i class="fas fa-check text-xs"></i>
                         </button>
                         <?php else: ?>
                         <span class="text-xs text-gray-300">—</span>

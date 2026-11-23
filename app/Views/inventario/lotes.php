@@ -1,49 +1,6 @@
 <?php $this->extend('layouts/app'); ?>
 <?php $this->section('content'); ?>
 
-<!-- Stat cards -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Total Lotes</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= $stats['total'] ?? 0 ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-boxes"></i></span>
-        </div>
-    </div>
-
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-orange-500 to-orange-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Por Vencer</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= $stats['por_vencer'] ?? 0 ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-clock"></i></span>
-        </div>
-    </div>
-
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-red-500 to-red-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Vencidos</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= $stats['vencidos'] ?? 0 ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-exclamation-circle"></i></span>
-        </div>
-    </div>
-
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-gray-400 to-gray-500 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Sin Fecha</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= $stats['sin_fecha'] ?? 0 ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-infinity"></i></span>
-        </div>
-    </div>
-</div>
-
 <!-- Table card -->
 <div class="bg-white rounded-2xl shadow-sm border border-gray-100">
     <div class="flex justify-between items-center p-6 border-b border-gray-100">

@@ -67,6 +67,7 @@ $nota = trim((string) ($entrega['nota'] ?? ''));
         <p style="font-size: 10px;"><?= esc($lema) ?></p>
         <?php if ($ruc !== ''): ?><p style="font-size: 12px;">RUC: <?= esc($ruc) ?></p><?php endif; ?>
         <?php if ($web !== ''): ?><p style="font-size: 8px;"><?= esc($web) ?></p><?php endif; ?>
+        <?php if (!empty($bodega)): ?><p style="font-size: 11px; font-weight: bold; margin-top: 6px;">HOJA PARA BODEGA</p><?php endif; ?>
     </div>
 
     <table class="campos">
@@ -94,7 +95,7 @@ $nota = trim((string) ($entrega['nota'] ?? ''));
             <tr>
                 <td class="cen"><?= $n++ ?></td>
                 <td><?= esc($it['nombre']) ?><?= $it['codigo'] !== null && $it['codigo'] !== '' ? ' (' . esc($it['codigo']) . ')' : '' ?></td>
-                <?php foreach ($depositos as $d): ?><td></td><?php endforeach; ?>
+                <?php foreach ($depositos as $d): $st = (float) ($it['stock'][(int) $d['deposito_id']]['existencia'] ?? 0); $ub = (string) ($it['stock'][(int) $d['deposito_id']]['ubicacion'] ?? ''); ?><td class="cen"><?php if (!empty($bodega) && $st > 0): ?><b><?= esc(number_format($st, 2, '.', '')) ?></b><?php if ($ub !== ''): ?><br><span style="font-size: 8px; color: #555;"><?= esc($ub) ?></span><?php endif; ?><?php endif; ?></td><?php endforeach; ?>
                 <td class="cen"><?= esc(number_format((float) $it['cantidad'], 2, '.', '')) ?></td>
             </tr>
         <?php endforeach; ?>

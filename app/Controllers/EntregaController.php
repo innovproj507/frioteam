@@ -86,7 +86,7 @@ class EntregaController extends BaseController
     /** GET /entregas/{id} — vista para ver o imprimir desde el navegador. */
     public function ver(int $id)
     {
-        $datos = EntregaVenta::datos($id, (int) $this->sucursalId());
+        $datos = EntregaVenta::datos($id, (int) $this->sucursalId(), $this->esBodega());
         if (!$datos) {
             $this->error('Entrega no encontrada.');
             return redirect()->to('/entregas');
@@ -97,7 +97,7 @@ class EntregaController extends BaseController
     /** GET /entregas/{id}/modal — detalle de la entrega como fragmento HTML para la ventana (modal). */
     public function modal(int $id)
     {
-        $datos = EntregaVenta::datos($id, (int) $this->sucursalId());
+        $datos = EntregaVenta::datos($id, (int) $this->sucursalId(), $this->esBodega());
         if (!$datos) {
             return $this->response->setStatusCode(404)->setBody('Entrega no encontrada.');
         }
@@ -107,7 +107,7 @@ class EntregaController extends BaseController
     /** GET /entregas/{id}/pdf */
     public function pdf(int $id)
     {
-        $datos = EntregaVenta::datos($id, (int) $this->sucursalId());
+        $datos = EntregaVenta::datos($id, (int) $this->sucursalId(), $this->esBodega());
         if (!$datos) {
             $this->error('Entrega no encontrada.');
             return redirect()->to('/entregas');
@@ -127,7 +127,7 @@ class EntregaController extends BaseController
         }
         ob_start();
         try {
-            $trabajo = EntregaVenta::imprimir($id, (int) $this->sucursalId());
+            $trabajo = EntregaVenta::imprimir($id, (int) $this->sucursalId(), $this->esBodega());
         } catch (\Throwable $e) {
             ob_end_clean();
             log_message('error', 'Impresión CUPS de la entrega {id}: {m}', ['id' => $id, 'm' => $e->getMessage()]);
@@ -136,5 +136,11 @@ class EntregaController extends BaseController
         ob_end_clean();
         log_message('info', 'Entrega {id} enviada a CUPS: trabajo {t}.', ['id' => $id, 't' => $trabajo]);
         return $this->json(['ok' => true, 'mensaje' => 'Entrega enviada a la impresora.', 'trabajo' => $trabajo]);
+    }
+
+    /** ?bodega=1 → hoja para bodega (con la existencia de cada depósito) en lugar de la copia para el cliente. */
+    private function esBodega(): bool
+    {
+        return (string) ($this->request->getGet('bodega') ?? '') === '1';
     }
 }

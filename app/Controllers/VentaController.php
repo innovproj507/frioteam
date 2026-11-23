@@ -34,8 +34,16 @@ class VentaController extends BaseController
         $params = [$sucursalId];
 
         if ($buscar !== '') {
-            $where .= ' AND v.numero_factura LIKE ?';
-            $params[] = "%{$buscar}%";
+            // Por número de factura o por nombre del cliente (varias palabras, en cualquier orden)
+            $esc      = fn (string $t) => str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $t);
+            $palabras = array_slice(preg_split('/\s+/', trim($buscar), -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, 6);
+            $porNombre = $palabras ? implode(' AND ', array_fill(0, count($palabras), 'c.nombre LIKE ?')) : '1 = 0';
+            $where .= " AND (v.numero_factura LIKE ? OR ({$porNombre}) OR (v.cliente_id IS NULL AND 'consumidor final' LIKE ?))";
+            $params[] = '%' . $esc($buscar) . '%';
+            foreach ($palabras as $palabra) {
+                $params[] = '%' . $esc($palabra) . '%';
+            }
+            $params[] = '%' . $esc($buscar) . '%';
         }
         if ($estado !== '') {
             $where .= ' AND v.estado = ?';
@@ -297,6 +305,8 @@ class VentaController extends BaseController
             'page_title'        => 'Punto de Venta',
             'page_subtitle'     => 'POS',
             'depositos'         => $this->depositosActivos(),
+            'deposito_pos'      => $this->depositoId(),
+            'deposito_pos_nombre' => (string) ($this->session->get('deposito_actual')['nombre'] ?? ''),
             'clientes'          => $this->clientesActivos(),
             'max_descuento_pct' => $maxDescuento,
             'rol_usuario'       => $rol,
@@ -680,6 +690,14 @@ class VentaController extends BaseController
         $depI  = $depId > 0 ? " AND i.deposito_id = {$depId}" : '';
         $depI2 = $depId > 0 ? " AND i2.deposito_id = {$depId}" : '';
 
+        // Solo para MOSTRAR la cantidad: el POS pide el stock de su depósito activo (de donde descuenta la venta)
+        // sin esconder los productos que ese depósito aún no tiene registrados (se pueden vender sin stock).
+        $stockDep = (int) ($this->request->getGet('stock_deposito') ?? 0);
+        if ($stockDep > 0 && !\App\Libraries\SucursalService::puedeUsarDeposito($stockDep, (int) $sucursalId)) {
+            $stockDep = 0;
+        }
+        $depStock = $stockDep > 0 ? " AND i.deposito_id = {$stockDep}" : $depI;
+
         // Ubicación (stand) del producto en los dos primeros depósitos de la tienda: columnas Lugar / Lugar(2) del POS
         $deps = array_values(\App\Libraries\SucursalService::depositosDe((int) $sucursalId));
         $dep1 = (int) ($deps[0]['deposito_id'] ?? 0);
@@ -695,7 +713,7 @@ class VentaController extends BaseController
                           ORDER BY d.es_principal DESC LIMIT 1) AS lugar,
                         COALESCE((SELECT SUM(i.existencia) FROM inventario i
                                     JOIN depositos d ON i.deposito_id = d.deposito_id
-                                   WHERE i.producto_id = p.producto_id AND d.sucursal_id = ?{$depI}), 0) AS stock,
+                                   WHERE i.producto_id = p.producto_id AND d.sucursal_id = ?{$depStock}), 0) AS stock,
                         COALESCE(pp_a.precio, 0) AS precio_a,
                         COALESCE(pp_b.precio, 0) AS precio_b,
                         COALESCE(pp_c.precio, 0) AS precio_c

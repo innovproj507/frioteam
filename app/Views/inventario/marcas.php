@@ -3,52 +3,12 @@
 
 <?php $s = $stats ?? []; $marcas = $marcas ?? []; $pagination = $pagination ?? []; ?>
 
-<!-- Tarjetas de métricas -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-sky-500 to-sky-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Total</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['total'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-certificate"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Con productos</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['con_productos'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-check"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-gray-400 to-gray-500 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Sin productos</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= max(0, (int)($s['total'] ?? 0) - (int)($s['con_productos'] ?? 0)) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-ban"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-pink-500 to-pink-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Productos</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['total_asignados'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-box"></i></span>
-        </div>
-    </div>
-</div>
-
 <!-- Barra de filtros + nueva marca -->
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 mb-4">
     <form method="get" id="search-form" class="flex flex-wrap items-end gap-3">
 
         <div class="flex-1 min-w-48">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Buscar</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-magnifying-glass mr-1"></i>Buscar</label>
             <div class="relative">
                 <i class="fas fa-search absolute left-0 top-2 text-gray-400 text-xs"></i>
                 <input type="text" name="buscar" id="search-input"
@@ -62,7 +22,7 @@
         </div>
 
         <div class="min-w-28">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Por página</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-list-ol mr-1"></i>Por página</label>
             <select name="por_pagina" onchange="this.form.submit()"
                 class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
                 <?php foreach ([10, 25, 50, 100] as $n): ?>
@@ -74,9 +34,9 @@
         <div class="flex gap-2">
             <?php if (!empty($_GET['buscar'])): ?>
             <a href="/inventario/marcas"
-                class="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 text-gray-400 rounded-lg text-sm hover:bg-gray-50 transition"
-                title="Limpiar búsqueda">
-                <i class="fas fa-times"></i>
+                class="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+                title="Quitar la búsqueda">
+                <i class="fas fa-xmark"></i> Limpiar
             </a>
             <?php endif; ?>
             <button type="button" onclick="toggleNuevaMarca()"
@@ -132,8 +92,8 @@
     <table class="w-full text-sm">
         <thead>
             <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                <th class="px-4 py-3 bg-white">Marca</th>
-                <th class="px-4 py-3 bg-white text-center">Productos</th>
+                <th class="px-4 py-3 bg-white"><i class="fas fa-copyright mr-1"></i>Marca</th>
+                <th class="px-4 py-3 bg-white text-center"><i class="fas fa-box mr-1"></i>Productos</th>
                 <th class="px-4 py-3 bg-white text-center">Acciones</th>
             </tr>
         </thead>
@@ -176,8 +136,8 @@
                 <!-- Total productos -->
                 <td class="px-4 py-3 text-center">
                     <?php if ($totalProd > 0): ?>
-                    <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white min-w-[2rem]">
-                        <?= $totalProd ?>
+                    <span class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 min-w-[2rem]" title="<?= (int) $totalProd ?> productos" aria-label="<?= (int) $totalProd ?> productos">
+                        <i class="fas fa-box text-[10px]"></i><?= $totalProd ?>
                     </span>
                     <?php else: ?>
                     <span class="text-gray-300 text-xs">0</span>
@@ -186,21 +146,21 @@
 
                 <!-- Acciones -->
                 <td class="px-4 py-3 text-center">
-                    <div class="flex items-center justify-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                    <div class="flex items-center justify-center gap-1.5">
                         <button type="button" onclick="editarMarca(<?= $m['marca_id'] ?>)"
-                            class="w-7 h-7 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center justify-center" title="Editar">
+                            class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white transition-colors flex items-center justify-center" title="Editar marca" aria-label="Editar marca">
                             <i class="fas fa-pen text-xs"></i>
                         </button>
                         <?php if ($totalProd === 0): ?>
                         <form action="/inventario/marcas/<?= $m['marca_id'] ?>/eliminar" method="POST"
                             onsubmit="return confirm('¿Eliminar la marca «<?= esc(addslashes($m['nombre'])) ?>»?')">
                             <?= csrf_field() ?>
-                            <button type="submit" class="w-7 h-7 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center justify-center" title="Eliminar">
+                            <button type="submit" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 hover:bg-red-500 hover:text-white transition-colors flex items-center justify-center" title="Eliminar marca" aria-label="Eliminar marca">
                                 <i class="fas fa-trash text-xs"></i>
                             </button>
                         </form>
                         <?php else: ?>
-                        <span class="w-7 h-7 rounded-lg bg-gray-200 text-gray-400 flex items-center justify-center cursor-not-allowed" title="Tiene productos asignados">
+                        <span class="w-8 h-8 rounded-lg bg-gray-100 text-gray-300 flex items-center justify-center cursor-not-allowed" title="No se puede eliminar: tiene productos asignados" aria-label="No se puede eliminar: tiene productos asignados">
                             <i class="fas fa-trash text-xs"></i>
                         </span>
                         <?php endif; ?>

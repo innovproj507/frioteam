@@ -20,6 +20,9 @@ class ClienteController extends BaseController
         $buscar    = (string) ($this->request->getGet('buscar') ?? '');
         $estado    = (string) ($this->request->getGet('estado') ?? '');
         $tipo      = (string) ($this->request->getGet('tipo') ?? '');
+        if ($estado === 'eliminado' && !$this->veEliminados()) {
+            $estado = '';
+        }
         $porPagina = in_array((int) $this->request->getGet('por_pagina'), [10, 25, 50, 100], true) ? (int) $this->request->getGet('por_pagina') : (int) env('PAGINATION_PER_PAGE', 25);
 
         $where  = 'empresa_id = ?';
@@ -36,6 +39,9 @@ class ClienteController extends BaseController
             $where .= ' AND tipo = ?';
             $params[] = $tipo;
         }
+        if ($estado !== 'eliminado') {
+            $where .= " AND estado <> 'eliminado'"; // los eliminados no salen en la lista
+        }
 
         $total      = (int) Db::value("SELECT COUNT(*) FROM clientes WHERE {$where}", $params);
         $offset     = ($page - 1) * $porPagina;
@@ -47,13 +53,15 @@ class ClienteController extends BaseController
             'clientes'      => Fila::lista(Db::all("SELECT * FROM clientes WHERE {$where} ORDER BY nombre ASC LIMIT {$porPagina} OFFSET {$offset}", $params)),
             'pagination'    => $pagination,
             'stats'         => Db::row(
-                "SELECT COUNT(*) AS total,
+                "SELECT SUM(CASE WHEN estado <> 'eliminado' THEN 1 ELSE 0 END) AS total,
                         SUM(CASE WHEN estado = 'activo' THEN 1 ELSE 0 END) AS activos,
                         SUM(CASE WHEN estado = 'inactivo' THEN 1 ELSE 0 END) AS inactivos,
+                        SUM(CASE WHEN estado = 'eliminado' THEN 1 ELSE 0 END) AS eliminados,
                         SUM(saldo_pendiente) AS saldo_total
                  FROM clientes WHERE empresa_id = ?",
                 [$empresaId]
             ),
+            've_eliminados' => $this->veEliminados(),
             'buscar'        => $buscar,
             'estado_filtro' => $estado,
             'tipo_filtro'   => $tipo,
@@ -83,6 +91,9 @@ class ClienteController extends BaseController
         }
         if ($datos['codigo'] === '') {
             $datos['codigo'] = NumeracionService::siguiente('cliente', $this->empresaId());
+        }
+        if ($foto = $this->subirFoto()) {
+            $datos['foto'] = $foto;
         }
 
         $id = Db::insert('clientes', $datos + [
@@ -128,6 +139,7 @@ class ClienteController extends BaseController
             'page_title'    => 'Editar Cliente',
             'page_subtitle' => $cliente['nombre'],
             'cliente'       => new Fila($cliente),
+            'nuevo_codigo'  => trim((string) $cliente['codigo']) === '' ? NumeracionService::siguiente('cliente', $this->empresaId()) : '',
         ]);
     }
 
@@ -139,12 +151,24 @@ class ClienteController extends BaseController
         }
 
         $datos  = $this->datos();
+        if ($datos['codigo'] === '') {
+            $datos['codigo'] = NumeracionService::siguiente('cliente', $this->empresaId());
+        }
         // El estado del formulario de edición (antes se ignoraba y no había forma de reactivar un cliente)
         $estado = (string) ($this->request->getPost('estado') ?? '');
         if (in_array($estado, ['activo', 'inactivo'], true)) {
             $datos['estado'] = $estado;
         }
+        $anterior = $this->buscar($clienteId)['foto'] ?? null;
+        if ($foto = $this->subirFoto()) {
+            $datos['foto'] = $foto;
+        } elseif ($this->request->getPost('quitar_foto')) {
+            $datos['foto'] = null;
+        }
         Db::update('clientes', $datos, ['cliente_id' => $clienteId]);
+        if ($anterior && array_key_exists('foto', $datos) && $datos['foto'] !== $anterior) {
+            $this->borrarArchivoFoto($anterior);
+        }
         $this->success('Cliente actualizado.');
         return redirect()->to("/clientes/{$clienteId}");
     }
@@ -157,6 +181,9 @@ class ClienteController extends BaseController
             return redirect()->to('/clientes');
         }
 
+        if ($cliente['estado'] === 'eliminado') {
+            return redirect()->to('/clientes');
+        }
         $nuevo = $cliente['estado'] === 'activo' ? 'inactivo' : 'activo';
         Db::update('clientes', ['estado' => $nuevo], ['cliente_id' => $clienteId]);
         $this->success("Cliente marcado como {$nuevo}.");
@@ -171,12 +198,14 @@ class ClienteController extends BaseController
             return redirect()->to('/clientes');
         }
 
-        // Con ventas, cotizaciones o saldo no se borra (perdería el historial y la deuda)
+        // Con ventas, cotizaciones o saldo NO se borra la fila (se perdería el historial y la deuda): se OCULTA.
+        // Para quien lo elimina el cliente desaparece de las listas y los buscadores; las facturas y el saldo siguen igual.
         $usos = (int) Db::value("SELECT COUNT(*) FROM ventas WHERE cliente_id = ?", [$clienteId])
               + (int) Db::value("SELECT COUNT(*) FROM cotizaciones WHERE cliente_id = ?", [$clienteId]);
         if ($usos > 0 || (float) $cliente['saldo_pendiente'] > 0) {
-            Db::update('clientes', ['estado' => 'inactivo'], ['cliente_id' => $clienteId]);
-            $this->warning("El cliente tiene ventas, cotizaciones o saldo pendiente: se marcó como inactivo en lugar de eliminarse.");
+            Db::update('clientes', ['estado' => 'eliminado'], ['cliente_id' => $clienteId]);
+            AuditService::log('clientes.eliminar', "Cliente eliminado (oculto; conserva historial y saldo): {$cliente['nombre']}", $clienteId, 'cliente', [], $this->empresaId());
+            $this->success('Cliente eliminado.');
             return redirect()->to('/clientes');
         }
 
@@ -188,6 +217,46 @@ class ClienteController extends BaseController
 
         $this->success('Cliente eliminado.');
         return redirect()->to('/clientes');
+    }
+
+    /** Foto/logo del cliente: imagen real (JPG/PNG/WEBP/GIF) de hasta 3 MB. */
+    private function subirFoto(): ?string
+    {
+        $file = $this->request->getFile('foto');
+        if ($file === null || !$file->isValid() || $file->hasMoved()) {
+            return null;
+        }
+        if ($file->getSize() > 3 * 1024 * 1024) {
+            $this->warning('La foto pesa más de 3 MB: no se guardó.');
+            return null;
+        }
+        return $this->subirImagen('foto', 'clientes');
+    }
+
+    private function borrarArchivoFoto(string $ruta): void
+    {
+        if (preg_match('~^clientes/[a-f0-9]+\.(jpg|png|webp|gif)$~', $ruta)) {
+            @unlink(FCPATH . 'assets/uploads/' . $ruta);
+        }
+    }
+
+    /** Solo el administrador principal ve los clientes eliminados y puede devolverlos a la lista. */
+    private function veEliminados(): bool
+    {
+        return Auth::rol() === 'superadmin';
+    }
+
+    public function restaurar(int $clienteId)
+    {
+        $cliente = $this->veEliminados() ? Db::row("SELECT * FROM clientes WHERE cliente_id = ? AND empresa_id = ? AND estado = 'eliminado'", [$clienteId, $this->empresaId()]) : null;
+        if (!$cliente) {
+            $this->error('No autorizado.');
+            return redirect()->to('/clientes');
+        }
+        Db::update('clientes', ['estado' => 'activo'], ['cliente_id' => $clienteId]);
+        AuditService::log('clientes.restaurar', "Cliente restaurado: {$cliente['nombre']}", $clienteId, 'cliente', [], $this->empresaId());
+        $this->success('Cliente restaurado.');
+        return redirect()->to('/clientes?estado=eliminado');
     }
 
     public function agregarDireccion(int $clienteId)
@@ -274,7 +343,7 @@ class ClienteController extends BaseController
             'page_title'    => 'Cuentas por Cobrar',
             'page_subtitle' => 'Gestión de cartera y créditos',
             'cuentas'       => Db::all(
-                "SELECT c.cliente_id, c.nombre, c.ruc, c.telefono, c.limite_credito AS cupo_credito, c.saldo_pendiente,
+                "SELECT c.cliente_id, c.nombre, c.ruc, c.telefono, c.limite_credito AS cupo_credito, c.saldo_pendiente, c.estado,
                         (SELECT MAX(fecha) FROM ventas WHERE cliente_id = c.cliente_id AND forma_pago = 'CREDITO') AS ultima_venta_credito
                  FROM clientes c
                  WHERE c.saldo_pendiente > 0 AND c.empresa_id = ?
@@ -300,7 +369,8 @@ class ClienteController extends BaseController
 
     private function buscar(int $clienteId): ?array
     {
-        return Db::row("SELECT * FROM clientes WHERE cliente_id = ? AND empresa_id = ?", [$clienteId, $this->empresaId()]);
+        $fila = Db::row("SELECT * FROM clientes WHERE cliente_id = ? AND empresa_id = ?", [$clienteId, $this->empresaId()]);
+        return ($fila && $fila['estado'] === 'eliminado' && !$this->veEliminados()) ? null : $fila;
     }
 
     private function datos(): array

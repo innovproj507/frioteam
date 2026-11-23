@@ -19,6 +19,7 @@ $routes->group('', ['filter' => ['auth', 'sucursal']], static function ($routes)
     $routes->post('clientes/(:num)/editar', 'ClienteController::actualizar/$1', ['filter' => 'permiso:clientes.editar']);
     $routes->post('clientes/(:num)/estado', 'ClienteController::cambiarEstado/$1', ['filter' => 'permiso:clientes.editar']);
     $routes->post('clientes/(:num)/eliminar', 'ClienteController::eliminar/$1', ['filter' => 'permiso:clientes.eliminar']);
+    $routes->post('clientes/(:num)/restaurar', 'ClienteController::restaurar/$1', ['filter' => 'permiso:clientes.eliminar']);
     $routes->post('clientes/(:num)/direccion', 'ClienteController::agregarDireccion/$1', ['filter' => 'permiso:clientes.editar']);
     $routes->post('clientes/direccion/(:num)/eliminar', 'ClienteController::eliminarDireccion/$1', ['filter' => 'permiso:clientes.eliminar']);
 

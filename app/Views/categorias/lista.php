@@ -3,52 +3,12 @@
 
 <?php $s = $stats ?? []; ?>
 
-<!-- Tarjetas de métricas -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-sky-500 to-sky-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Total</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['total'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-tags"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-red-500 to-red-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Raíz</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['raiz'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-sitemap"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-amber-500 to-amber-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Subcategorías</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['subcategorias'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-code-branch"></i></span>
-        </div>
-    </div>
-    <div class="rounded-2xl p-5 shadow-sm bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-        <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-                <p class="text-xs font-semibold text-white/80">Con productos</p>
-                <h3 class="text-xl font-extrabold mt-1"><?= (int)($s['con_productos'] ?? 0) ?></h3>
-            </div>
-            <span class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-box"></i></span>
-        </div>
-    </div>
-</div>
-
 <!-- Barra de filtros -->
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 mb-4">
     <form method="get" id="search-form" class="flex flex-wrap items-end gap-3">
 
         <div class="flex-1 min-w-48">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Buscar</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-magnifying-glass mr-1"></i>Buscar</label>
             <div class="relative">
                 <i class="fas fa-search absolute left-0 top-2 text-gray-400 text-xs"></i>
                 <input type="text" name="buscar" id="search-input"
@@ -62,7 +22,7 @@
         </div>
 
         <div class="min-w-44">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Categoría padre</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-sitemap mr-1"></i>Categoría padre</label>
             <select name="padre_id" onchange="this.form.submit()"
                 class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
                 <option value="">Todas</option>
@@ -77,7 +37,7 @@
         </div>
 
         <div class="min-w-28">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Por página</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-list-ol mr-1"></i>Por página</label>
             <select name="por_pagina" onchange="this.form.submit()"
                 class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
                 <?php foreach ([10, 25, 50, 100] as $n): ?>
@@ -89,9 +49,9 @@
         <div class="flex gap-2">
             <?php if (!empty($_GET['buscar']) || (isset($_GET['padre_id']) && $_GET['padre_id'] !== '')): ?>
             <a href="/inventario/categorias"
-                class="inline-flex items-center gap-1 px-3 py-2 border border-gray-200 text-gray-400 rounded-lg text-sm hover:bg-gray-50 transition"
-                title="Limpiar filtros">
-                <i class="fas fa-times"></i>
+                class="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition"
+                title="Quitar los filtros">
+                <i class="fas fa-xmark"></i> Limpiar
             </a>
             <?php endif; ?>
             <a href="/inventario/categorias/nueva"
@@ -120,11 +80,11 @@
     <table class="w-full text-sm">
         <thead>
             <tr class="border-b border-gray-100 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                <th class="px-4 py-3 bg-white">Categoría</th>
-                <th class="px-4 py-3 bg-white">Descripción</th>
-                <th class="px-4 py-3 bg-white">Padre</th>
-                <th class="px-4 py-3 bg-white text-center">Productos</th>
-                <th class="px-4 py-3 bg-white text-center">Sub.</th>
+                <th class="px-4 py-3 bg-white"><i class="fas fa-tag mr-1"></i>Categoría</th>
+                <th class="px-4 py-3 bg-white"><i class="fas fa-align-left mr-1"></i>Descripción</th>
+                <th class="px-4 py-3 bg-white"><i class="fas fa-sitemap mr-1"></i>Padre</th>
+                <th class="px-4 py-3 bg-white text-center"><i class="fas fa-box mr-1"></i>Productos</th>
+                <th class="px-4 py-3 bg-white text-center"><i class="fas fa-code-branch mr-1"></i>Sub.</th>
                 <th class="px-4 py-3 bg-white text-center">Acciones</th>
             </tr>
         </thead>
@@ -140,8 +100,8 @@
                 <!-- Nombre con ícono -->
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-white shadow-sm
-                            <?= $esPadre ? 'bg-red-500 shadow-red-500/30' : 'bg-sky-500 shadow-sky-500/30' ?>">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0
+                            <?= $esPadre ? 'bg-red-50 text-red-500' : 'bg-sky-50 text-sky-600' ?>">
                             <i class="fas <?= $esPadre ? 'fa-sitemap' : 'fa-tag' ?> text-xs"></i>
                         </div>
                         <div>
@@ -149,9 +109,9 @@
                                 <?= esc($cat['nombre']) ?>
                             </p>
                             <?php if ($esPadre): ?>
-                            <span class="text-xs text-red-500 font-medium">Categoría raíz</span>
+                            <span class="text-xs text-red-500 font-medium" title="Categoría raíz (principal)"><i class="fas fa-crown"></i> Categoría raíz</span>
                             <?php else: ?>
-                            <span class="text-xs text-gray-400">Nivel <?= (int)($cat['nivel'] ?? 2) ?></span>
+                            <span class="text-xs text-gray-400" title="Nivel <?= (int)($cat['nivel'] ?? 2) ?>"><i class="fas fa-layer-group"></i> Nivel <?= (int)($cat['nivel'] ?? 2) ?></span>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -169,8 +129,8 @@
                 <!-- Padre -->
                 <td class="px-4 py-3">
                     <?php if (!empty($cat['padre_nombre'])): ?>
-                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-xs font-medium">
-                        <i class="fas fa-level-up-alt" style="font-size:9px"></i>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-xs font-medium" title="Categoría padre">
+                        <i class="fas fa-turn-up" style="font-size:9px"></i>
                         <?= esc($cat['padre_nombre']) ?>
                     </span>
                     <?php else: ?>
@@ -181,8 +141,8 @@
                 <!-- Productos -->
                 <td class="px-4 py-3 text-center">
                     <?php if ($totalProd > 0): ?>
-                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500 text-white min-w-[2rem]">
-                        <?= $totalProd ?>
+                    <span class="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 min-w-[2rem]" title="<?= (int) $totalProd ?> productos" aria-label="<?= (int) $totalProd ?> productos">
+                        <i class="fas fa-box text-[10px]"></i><?= $totalProd ?>
                     </span>
                     <?php else: ?>
                     <span class="text-gray-300 text-xs">0</span>
@@ -192,8 +152,8 @@
                 <!-- Subcategorías -->
                 <td class="px-4 py-3 text-center">
                     <?php if ($totalSubs > 0): ?>
-                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-500 text-white min-w-[2rem]">
-                        <?= $totalSubs ?>
+                    <span class="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 min-w-[2rem]" title="<?= (int) $totalSubs ?> subcategorías" aria-label="<?= (int) $totalSubs ?> subcategorías">
+                        <i class="fas fa-sitemap text-[10px]"></i><?= $totalSubs ?>
                     </span>
                     <?php else: ?>
                     <span class="text-gray-300 text-xs">—</span>
@@ -202,9 +162,9 @@
 
                 <!-- Acciones -->
                 <td class="px-4 py-3 text-center">
-                    <div class="flex items-center justify-center gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                    <div class="flex items-center justify-center gap-1.5">
                         <a href="/inventario/categorias/<?= $cat['categoria_id'] ?>/editar"
-                            class="w-8 h-8 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors flex items-center justify-center shadow-sm shadow-amber-500/30" title="Editar">
+                            class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white transition-colors flex items-center justify-center" title="Editar categoría" aria-label="Editar categoría">
                             <i class="fas fa-pen text-xs"></i>
                         </a>
                         <form action="/inventario/categorias/<?= $cat['categoria_id'] ?>/eliminar"
@@ -212,8 +172,8 @@
                             onsubmit="return confirm('¿Eliminar «<?= esc(addslashes($cat['nombre'])) ?>»?<?= ($totalProd > 0 || $totalSubs > 0) ? '\n\nTiene productos o subcategorías asociadas.' : '' ?>')">
                             <?= csrf_field() ?>
                             <button type="submit"
-                                class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors <?= ($totalProd > 0 || $totalSubs > 0) ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600 shadow-sm shadow-red-500/30' ?>"
-                                title="<?= ($totalProd > 0 || $totalSubs > 0) ? 'Tiene elementos asociados' : 'Eliminar' ?>">
+                                class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors <?= ($totalProd > 0 || $totalSubs > 0) ? 'bg-gray-100 text-gray-300 cursor-not-allowed' : 'bg-slate-100 text-slate-400 hover:bg-red-500 hover:text-white' ?>"
+                                title="<?= ($totalProd > 0 || $totalSubs > 0) ? 'No se puede: tiene productos o subcategorías' : 'Eliminar categoría' ?>" aria-label="<?= ($totalProd > 0 || $totalSubs > 0) ? 'No se puede eliminar: tiene elementos asociados' : 'Eliminar categoría' ?>">
                                 <i class="fas fa-trash text-xs"></i>
                             </button>
                         </form>

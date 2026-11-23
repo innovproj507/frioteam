@@ -81,6 +81,10 @@ $bc = match($venta['estado']) {
             <i class="fas fa-truck"></i> Agregar entrega
         </button>
         <?php endif; ?>
+        <button type="button" onclick="hojaBodega()" title="Hoja con la existencia de cada depósito, para entregar a bodega"
+           class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
+            <i class="fas fa-warehouse text-amber-500"></i> Para bodega
+        </button>
         <a href="/ventas/venta/<?= (int) $venta['venta_id'] ?>/factura" target="_blank"
            class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition">
             <i class="fas fa-file-invoice"></i> Factura
@@ -565,6 +569,17 @@ $bc = match($venta['estado']) {
     let CUPS = false;
 
     function esc(t) { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
+
+    // Hoja para bodega: se arma sobre la entrega más reciente; si todavía no hay ninguna, se abre "Agregar entrega"
+    window.hojaBodega = async function () {
+        try {
+            const r = await fetch('/ventas/venta/' + VENTA_ID + '/entregas', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const d = await r.json();
+            if (d.entregas && d.entregas.length) { window.verEntrega(d.entregas[0].entrega_id, true); return; }
+        } catch (e) { /* se abre el formulario */ }
+        alert('Primero crea la entrega de esta venta; después podrás ver e imprimir la hoja para bodega.');
+        window.abrirModalEntrega();
+    };
 
     async function cargarEntregas() {
         const cont = $('entregas-venta'); if (!cont) return;

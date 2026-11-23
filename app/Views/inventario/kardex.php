@@ -5,7 +5,7 @@
 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 mb-4">
     <form method="GET" action="/inventario/kardex" class="flex flex-wrap items-end gap-3">
         <div class="flex-1 min-w-48">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Producto</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-box mr-1"></i>Producto</label>
             <select name="producto_id" class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
                 <option value="">Todos los productos</option>
                 <?php foreach ($productos as $p): ?>
@@ -16,7 +16,7 @@
             </select>
         </div>
         <div class="min-w-40">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Depósito</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-warehouse mr-1"></i>Depósito</label>
             <select name="deposito_id" class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
                 <option value="">Todos los depósitos</option>
                 <?php foreach ($depositos as $d): ?>
@@ -27,7 +27,7 @@
             </select>
         </div>
         <div class="min-w-44">
-            <label class="block text-xs font-semibold text-gray-500 mb-1">Tipo Movimiento</label>
+            <label class="block text-xs font-semibold text-gray-500 mb-1"><i class="fas fa-right-left mr-1"></i>Tipo de movimiento</label>
             <select name="tipo" class="w-full py-1.5 px-0 text-sm bg-transparent border-0 border-b border-gray-200 focus:border-sky-400 focus:ring-0 outline-none appearance-none">
                 <option value="">Cualquier tipo</option>
                 <option value="entrada" <?= ($filtros['tipo'] ?? '') == 'entrada' ? 'selected' : '' ?>>Entrada</option>
@@ -53,12 +53,12 @@
         <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b border-gray-100">
                 <tr class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    <th class="px-4 py-3">Fecha / Hora</th>
-                    <th class="px-4 py-3">Producto / Depósito</th>
-                    <th class="px-4 py-3 text-center">Tipo</th>
-                    <th class="px-4 py-3 text-right">Cantidad</th>
-                    <th class="px-4 py-3 text-right">Saldo Nuevo</th>
-                    <th class="px-4 py-3">Motivo</th>
+                    <th class="px-4 py-3"><i class="fas fa-clock mr-1"></i>Fecha / Hora</th>
+                    <th class="px-4 py-3"><i class="fas fa-box mr-1"></i>Producto / Depósito</th>
+                    <th class="px-4 py-3 text-center"><i class="fas fa-right-left mr-1"></i>Tipo</th>
+                    <th class="px-4 py-3 text-right"><i class="fas fa-calculator mr-1"></i>Cantidad</th>
+                    <th class="px-4 py-3 text-right"><i class="fas fa-scale-balanced mr-1"></i>Saldo nuevo</th>
+                    <th class="px-4 py-3"><i class="fas fa-comment-dots mr-1"></i>Motivo</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
@@ -74,17 +74,15 @@
                     </td>
                     <td class="px-4 py-3 text-center">
                         <?php
-                        $badge = match($m['tipo']) {
-                            'entrada'      => 'bg-emerald-500 text-white',
-                            'salida'       => 'bg-rose-500 text-white',
-                            'traslado_entrada'  => 'bg-sky-500 text-white',
-                            'traslado_salida' => 'bg-amber-500 text-white',
-                            default        => 'bg-gray-400 text-white'
+                        [$badge, $tIco, $tTxt] = match($m['tipo']) {
+                            'entrada'          => ['bg-emerald-100 text-emerald-600', 'fa-arrow-down-to-bracket',  'Entrada'],
+                            'salida'           => ['bg-rose-100 text-rose-600',       'fa-arrow-up-from-bracket',  'Salida'],
+                            'traslado_entrada' => ['bg-sky-100 text-sky-600',         'fa-arrow-right-to-bracket', 'Traslado entrante'],
+                            'traslado_salida'  => ['bg-amber-100 text-amber-600',     'fa-arrow-right-from-bracket', 'Traslado saliente'],
+                            default            => ['bg-gray-100 text-gray-500',       'fa-circle-question',        ucfirst(str_replace('_', ' ', (string) $m['tipo']))],
                         };
                         ?>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase <?= $badge ?>">
-                            <?= str_replace('_', ' ', $m['tipo']) ?>
-                        </span>
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap <?= $badge ?>" title="<?= esc($tTxt) ?>"><i class="fas <?= $tIco ?> text-[10px]"></i> <?= esc($tTxt) ?></span>
                     </td>
                     <td class="px-4 py-3 text-right whitespace-nowrap">
                         <span class="font-bold <?= in_array($m['tipo'], ['entrada', 'traslado_entrada']) ? 'text-emerald-600' : 'text-rose-600' ?>">

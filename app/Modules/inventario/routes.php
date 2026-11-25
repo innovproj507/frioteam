@@ -112,6 +112,7 @@ $routes->group('', ['filter' => ['auth', 'sucursal']], static function ($routes)
     // Traslados
     $routes->get('inventario/traslados', 'TrasladoController::index', ['filter' => 'permiso:traslados.ver']);
     $routes->get('inventario/traslados/nuevo', 'TrasladoController::crear', ['filter' => 'permiso:traslados.crear']);
+    $routes->get('inventario/traslados/(:num)/modal', 'TrasladoController::modal/$1', ['filter' => 'permiso:traslados.ver']);
     $routes->post('inventario/traslados/guardar', 'TrasladoController::guardar', ['filter' => 'permiso:traslados.crear']);
     $routes->post('inventario/traslados/(:num)/recibir', 'TrasladoController::recibir/$1', ['filter' => 'permiso:traslados.crear,traslados.aprobar']);
 });

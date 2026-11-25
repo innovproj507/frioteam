@@ -1053,8 +1053,11 @@
             const index = carrito.findIndex(item => item.id == p.producto_id && item.unidad_id == unidadId);
             if (index !== -1) {
                 carrito[index].cantidad = Math.round((parseFloat(carrito[index].cantidad) + 1) * 100) / 100;
+                // El último producto que se toca va arriba: la línea sube al primer lugar de la lista
+                if (index > 0) carrito.unshift(carrito.splice(index, 1)[0]);
             } else {
-                carrito.push({
+                // El último producto que entra queda de primero en la lista
+                carrito.unshift({
                     id: p.producto_id,
                     codigo: p.codigo,
                     nombre: p.nombre,

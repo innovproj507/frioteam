@@ -80,7 +80,7 @@ $campo  = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white f
         <div class="sm:col-span-5">
             <?php if (!empty($producto->imagen_principal)): ?>
                 <button type="button" onclick="document.getElementById('visor-foto').classList.replace('hidden', 'flex')" class="block w-full cursor-zoom-in" title="Ver en grande">
-                    <img src="/assets/uploads/<?= esc($producto->imagen_principal, 'attr') ?>" alt="" class="aspect-square w-full rounded-xl bg-gray-100 object-cover">
+                    <img src="/assets/uploads/<?= esc($producto->imagen_principal, 'attr') ?>" alt="" class="aspect-[4/3] w-full rounded-xl bg-gray-100 object-contain">
                 </button>
                 <div id="visor-foto" class="fixed inset-0 z-[100] hidden items-center justify-center p-6 bg-black/85 cursor-zoom-out" onclick="this.classList.replace('flex', 'hidden')">
                     <img src="/assets/uploads/<?= esc($producto->imagen_principal, 'attr') ?>" alt="" class="max-w-full max-h-full rounded-xl object-contain shadow-2xl">
@@ -88,7 +88,7 @@ $campo  = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white f
                 </div>
                 <script>document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.getElementById('visor-foto').classList.replace('flex', 'hidden'); });</script>
             <?php else: ?>
-                <div class="aspect-square w-full rounded-xl bg-gray-50 border border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-300">
+                <div class="aspect-[4/3] w-full rounded-xl bg-gray-50 border border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-300">
                     <i class="fas fa-camera text-3xl mb-1"></i><span class="text-xs">Sin foto</span>
                 </div>
             <?php endif; ?>

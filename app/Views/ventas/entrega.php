@@ -24,23 +24,23 @@ $nota = trim((string) ($entrega['nota'] ?? ''));
     <meta charset="utf-8">
     <title>Entrega <?= esc($entrega['numero']) ?></title>
     <style>
-        @page { size: <?= $papel === 'a4' ? 'A4' : 'letter' ?> portrait; margin: 14mm 12mm; }
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #222; margin: 0; <?= $modo === 'web' ? 'background:#e5e7eb;' : '' ?> }
+        @page { size: <?= $papel === 'a4' ? 'A4' : 'letter' ?> portrait; margin: 9mm 9mm; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 14px; color: #222; margin: 0; <?= $modo === 'web' ? 'background:#e5e7eb;' : '' ?> }
         .hoja { <?= $modo === 'web' ? 'max-width: 800px; margin: 16px auto; background:#fff; padding: 28px 34px; box-shadow: 0 1px 6px rgba(0,0,0,.15);' : '' ?> }
         .centro { text-align: center; }
-        .centro h1 { margin: 0; font-size: 22px; font-weight: normal; letter-spacing: .5px; }
+        .centro h1 { margin: 0; font-size: 20px; font-weight: normal; letter-spacing: .5px; }
         .centro p { margin: 1px 0; }
         table { border-collapse: collapse; width: 100%; }
-        .campos { margin-top: 14px; }
-        .campos td { border: 1px solid #d4d4d4; padding: 6px 8px; vertical-align: top; }
+        .campos { margin-top: 8px; }
+        .campos td { border: 1px solid #d4d4d4; padding: 3px 7px; vertical-align: top; }
         .campos td.etq { width: 28%; }
-        .items { margin-top: 16px; }
-        .items th { border: 1px solid #d4d4d4; padding: 7px 6px; font-size: 12px; text-align: center; }
-        .items td { border: 1px solid #d4d4d4; padding: 6px 7px; vertical-align: middle; }
+        .items { margin-top: 8px; }
+        .items th { border: 1px solid #d4d4d4; padding: 4px 5px; font-size: 14px; text-align: center; }
+        .items td { border: 1px solid #d4d4d4; padding: 2.5px 6px; vertical-align: middle; }
         .items td.cen { text-align: center; }
-        .firmas { margin-top: 26px; }
+        .firmas { margin-top: 18px; }
         .firmas td { width: 33%; vertical-align: top; padding-right: 22px; }
-        .linea { border-bottom: 1px solid #555; height: 46px; }
+        .linea { border-bottom: 1px solid #555; height: 36px; }
         tr { page-break-inside: avoid; }
         thead { display: table-header-group; }
         .barra { text-align: right; padding: 10px 14px; background: #1f2937; }
@@ -85,9 +85,9 @@ $nota = trim((string) ($entrega['nota'] ?? ''));
                 <th style="width: 32px;">No</th>
                 <th>Descripción</th>
                 <?php foreach ($depositos as $d): ?>
-                    <th style="width: 78px;"><?= esc(mb_strtolower((string) $d['nombre'])) ?></th>
+                    <th style="width: 86px; white-space: nowrap;"><?= esc(mb_strtolower((string) $d['nombre'])) ?></th>
                 <?php endforeach; ?>
-                <th style="width: 64px;">Cantidad</th>
+                <th style="width: 74px; white-space: nowrap;">Cantidad</th>
             </tr>
         </thead>
         <tbody>

@@ -756,13 +756,17 @@ function compraForm() {
             const exists = this.items.find(i => i.producto_id === p.producto_id);
             if (exists) {
                 exists.cantidad++;
+                // El último producto que se toca va arriba
+                const idx = this.items.indexOf(exists);
+                if (idx > 0) this.items.unshift(this.items.splice(idx, 1)[0]);
             } else {
                 const costo = parseFloat(p.costo || 0);
                 const margen = this.margenDefaultA;
                 const unidades = this.presentacionesDe(p);
                 // Sin columna de presentación: la línea siempre es en unidades
                 const factor = unidades[0].factor;
-                this.items.push({
+                // El último producto que entra queda de primero en la lista
+                this.items.unshift({
                     producto_id: p.producto_id,
                     nombre: p.nombre,
                     codigo: p.codigo,

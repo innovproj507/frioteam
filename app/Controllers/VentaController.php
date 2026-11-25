@@ -885,6 +885,41 @@ class VentaController extends BaseController
         ]);
     }
 
+    /** Ficha corta de un producto para la ventana de Nueva venta: datos, precios y existencia + ubicación por depósito. */
+    public function apiFichaProducto(int $productoId)
+    {
+        $p = Db::row(
+            "SELECT p.producto_id, p.codigo, p.codigo_barras, p.nombre, p.descripcion, p.marca, p.unidad_medida, p.imagen_principal, p.estado,
+                    cat.nombre AS categoria, pr.nombre AS proveedor
+             FROM productos p
+             LEFT JOIN categorias_productos cat ON cat.categoria_id = p.categoria_id
+             LEFT JOIN proveedores pr ON pr.proveedor_id = p.proveedor_id
+             WHERE p.producto_id = ? AND p.empresa_id = ?",
+            [$productoId, $this->empresaId()]
+        );
+        if (!$p) {
+            return $this->json(['error' => 'Producto no encontrado.'], 404);
+        }
+        $sucursal = (int) $this->sucursalId();
+        $depositos = Db::all(
+            "SELECT d.deposito_id, d.nombre, COALESCE(i.existencia, 0) AS existencia, COALESCE(i.ubicacion, '') AS ubicacion
+             FROM depositos d
+             LEFT JOIN inventario i ON i.deposito_id = d.deposito_id AND i.producto_id = ?
+             WHERE d.sucursal_id = ? AND d.estado = 'activo'
+             ORDER BY d.deposito_id",
+            [$productoId, $sucursal]
+        );
+        $precios = \App\Libraries\PrecioTienda::precios($productoId, $sucursal);
+
+        return $this->json([
+            'producto'  => $p + ['imagen' => $p['imagen_principal'] ? '/assets/uploads/' . $p['imagen_principal'] : null],
+            'precios'   => ['a' => $precios['a'] ?? 0, 'b' => $precios['b'] ?? 0, 'c' => $precios['c'] ?? 0],
+            'costo'     => ver_costos() ? \App\Libraries\PrecioTienda::costo($productoId, $sucursal) : null,
+            'depositos' => $depositos,
+            'total'     => array_sum(array_map(fn ($d) => (float) $d['existencia'], $depositos)),
+        ]);
+    }
+
     public function apiDepositos()
     {
         return $this->json(['depositos' => Db::all(

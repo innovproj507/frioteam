@@ -43,6 +43,7 @@ $routes->group('', ['filter' => ['auth', 'sucursal']], static function ($routes)
     // Mini-API del POS (JSON)
     $routes->get('api/productos/buscar', 'VentaController::apiBuscarProductos');
     $routes->get('api/productos/(:num)/stock', 'VentaController::apiVerificarStock/$1');
+    $routes->get('api/productos/(:num)/ficha', 'VentaController::apiFichaProducto/$1');
     $routes->get('api/depositos', 'VentaController::apiDepositos');
     $routes->post('ventas/clientes/rapido', 'VentaController::crearClienteRapido', ['filter' => 'permiso:clientes.crear,pos.usar']);
     $routes->post('ventas/clientes/(:num)/limite', 'VentaController::limiteCredito/$1', ['filter' => 'permiso:clientes.editar']);

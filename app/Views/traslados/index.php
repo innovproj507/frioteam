@@ -93,7 +93,7 @@
                         <div class="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
                             <i class="fas fa-exchange-alt text-xs"></i>
                         </div>
-                        <span class="font-mono text-xs text-gray-400">#<?= $t['traslado_id'] ?></span>
+                        <button type="button" onclick="verTraslado(<?= (int) $t['traslado_id'] ?>)" title="Ver los productos de este traslado" class="font-mono text-xs font-bold text-sky-600 hover:underline">#<?= $t['traslado_id'] ?></button>
                     </div>
                 </td>
 
@@ -123,14 +123,16 @@
 
                 <!-- Acciones -->
                 <td class="px-5 py-3.5 text-center">
-                    <div class="flex items-center justify-center">
+                    <div class="flex items-center justify-center gap-1.5">
+                        <button type="button" onclick="verTraslado(<?= (int) $t['traslado_id'] ?>)" title="Ver detalle (productos)" aria-label="Ver detalle del traslado"
+                            class="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 hover:bg-sky-500 hover:text-white transition-colors flex items-center justify-center">
+                            <i class="fas fa-eye text-xs"></i>
+                        </button>
                         <?php if ($t['estado'] === 'en_transito'): ?>
                         <button type="button" @click="recibirTraslado(<?= (int) $t['traslado_id'] ?>)" title="Confirmar la recepción" aria-label="Confirmar la recepción"
                             class="w-8 h-8 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors flex items-center justify-center shadow-sm">
                             <i class="fas fa-check text-xs"></i>
                         </button>
-                        <?php else: ?>
-                        <span class="text-xs text-gray-300">—</span>
                         <?php endif; ?>
                     </div>
                 </td>
@@ -169,6 +171,22 @@
 </div>
 <?php endif; ?>
 
+
+<!-- Ventana: detalle del traslado -->
+<style>
+@media print {
+    body * { visibility: hidden !important; }
+    #traslado-modal, #traslado-modal * { visibility: visible !important; }
+    #traslado-modal { position: absolute !important; inset: 0 !important; background: #fff !important; overflow: visible !important; padding: 0 !important; }
+    #traslado-modal button { display: none !important; }
+}
+</style>
+<div id="traslado-modal" class="fixed inset-0 bg-black/45 z-50 hidden items-start justify-center overflow-y-auto p-4 sm:p-8" onclick="if (event.target === this) cerrarTraslado()">
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl">
+        <button type="button" onclick="cerrarTraslado()" title="Cerrar" class="absolute top-3 right-4 z-10 text-3xl leading-none text-gray-300 hover:text-gray-500">&times;</button>
+        <div id="traslado-modal-contenido"></div>
+    </div>
+</div>
 <?php $this->endSection(); ?>
 
 <?php $this->section('extra_js'); ?>
@@ -188,6 +206,25 @@
             }
         });
     }
+
+    /* ── Detalle del traslado en una ventana ── */
+    function cerrarTraslado() {
+        var m = document.getElementById('traslado-modal');
+        m.classList.add('hidden'); m.classList.remove('flex');
+        document.getElementById('traslado-modal-contenido').innerHTML = '';
+        document.body.style.overflow = '';
+    }
+    async function verTraslado(id) {
+        var m = document.getElementById('traslado-modal'), c = document.getElementById('traslado-modal-contenido');
+        c.innerHTML = '<div class="py-16 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Cargando traslado…</div>';
+        m.classList.remove('hidden'); m.classList.add('flex'); document.body.style.overflow = 'hidden';
+        try {
+            var r = await fetch('/inventario/traslados/' + encodeURIComponent(id) + '/modal', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!r.ok) throw new Error('No se pudo cargar el traslado');
+            c.innerHTML = await r.text();
+        } catch (e) { c.innerHTML = '<div class="py-16 text-center text-red-500">' + e.message + '</div>'; }
+    }
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarTraslado(); });
 
     /* ── Alpine: confirmar recepción ── */
     function trasladosList() {

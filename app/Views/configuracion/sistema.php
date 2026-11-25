@@ -1,6 +1,45 @@
 <?php $this->extend('layouts/app'); ?>
 <?php $this->section('content'); ?>
 
+<?php if (\App\Controllers\ApagadoController::permitido()): $apagadoOk = \App\Controllers\ApagadoController::instalado(); ?>
+<!-- Apagar el servidor (solo administrador) -->
+<div class="mb-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+        <h3 class="text-sm font-semibold text-gray-700"><i class="fas fa-power-off text-red-500 mr-1.5"></i> Apagar el servidor</h3>
+        <p class="text-sm text-gray-500 mt-1">Apaga el equipo donde corre el sistema (por ejemplo al cerrar la noche). Nadie podrá usar el sistema hasta que lo enciendan de nuevo.</p>
+        <?php if (!$apagadoOk): ?>
+        <p class="text-xs text-amber-600 mt-1"><i class="fas fa-triangle-exclamation mr-1"></i>El apagado desde el sistema no está instalado en este servidor.</p>
+        <?php endif; ?>
+    </div>
+    <div class="flex items-center gap-2">
+        <?php if ($apagadoOk): ?>
+        <form method="post" action="/configuracion/apagar/cancelar">
+            <?= csrf_field() ?>
+            <button type="submit" class="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50" title="Solo sirve durante el minuto de espera después de pedir el apagado">Cancelar apagado</button>
+        </form>
+        <?php endif; ?>
+        <button type="button" <?= $apagadoOk ? '' : 'disabled' ?> onclick="document.getElementById('apagar-modal').classList.remove('hidden');document.getElementById('apagar-modal').classList.add('flex')"
+                class="inline-flex items-center gap-1.5 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fas fa-power-off"></i> Apagar servidor</button>
+    </div>
+</div>
+
+<div id="apagar-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4" onclick="if (event.target === this) { this.classList.add('hidden'); this.classList.remove('flex'); }">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div class="flex items-center gap-3 mb-3">
+            <span class="w-11 h-11 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-lg"><i class="fas fa-power-off"></i></span>
+            <h3 class="text-lg font-bold text-gray-900">¿Realmente desea apagar el servidor?</h3>
+        </div>
+        <p class="text-sm text-gray-600">Se apagará en <b>1 minuto</b>. Todos los equipos perderán el acceso al sistema hasta que alguien lo encienda de nuevo. Antes de apagar, confirma que no haya ventas en curso y que las cajas estén cerradas.</p>
+        <form method="post" action="/configuracion/apagar" class="mt-5 flex justify-end gap-2">
+            <?= csrf_field() ?>
+            <input type="hidden" name="confirmado" value="1">
+            <button type="button" onclick="var m=document.getElementById('apagar-modal');m.classList.add('hidden');m.classList.remove('flex')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">No, volver</button>
+            <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600"><i class="fas fa-power-off mr-1"></i> Sí, apagar</button>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
+
 <form method="post" action="/configuracion/guardar">
     <?= csrf_field() ?>
 

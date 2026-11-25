@@ -86,6 +86,38 @@ class TrasladoController extends BaseController
         ]);
     }
 
+    /** GET /inventario/traslados/{id}/modal — detalle del traslado (productos, cantidades, ubicaciones) como fragmento para la ventana. */
+    public function modal(int $id)
+    {
+        $s = (int) $this->sucursalId();
+        $t = Db::row(
+            "SELECT t.*, do.nombre AS origen_nombre, dd.nombre AS destino_nombre,
+                    TRIM(CONCAT(COALESCE(ue.first_name, ''), ' ', COALESCE(ue.last_name, ''))) AS envia_nombre, ue.username AS envia_usuario,
+                    TRIM(CONCAT(COALESCE(ur.first_name, ''), ' ', COALESCE(ur.last_name, ''))) AS recibe_nombre, ur.username AS recibe_usuario
+             FROM traslados t
+             JOIN depositos do ON t.deposito_origen_id = do.deposito_id
+             JOIN depositos dd ON t.deposito_destino_id = dd.deposito_id
+             LEFT JOIN users ue ON t.usuario_envia_id = ue.id
+             LEFT JOIN users ur ON t.usuario_recibe_id = ur.id
+             WHERE t.traslado_id = ? AND (do.sucursal_id = ? OR dd.sucursal_id = ?)",
+            [$id, $s, $s]
+        );
+        if (!$t) {
+            return $this->response->setStatusCode(404)->setBody('Traslado no encontrado.');
+        }
+        $items = Db::all(
+            "SELECT d.cantidad, d.cantidad_recibida, p.producto_id, p.codigo, p.nombre,
+                    COALESCE(io.ubicacion, '') AS ubicacion_origen, COALESCE(id_.ubicacion, '') AS ubicacion_destino
+             FROM traslados_detalle d
+             JOIN productos p ON p.producto_id = d.producto_id
+             LEFT JOIN inventario io  ON io.producto_id = d.producto_id AND io.deposito_id = ?
+             LEFT JOIN inventario id_ ON id_.producto_id = d.producto_id AND id_.deposito_id = ?
+             WHERE d.traslado_id = ? ORDER BY d.detalle_id",
+            [$t['deposito_origen_id'], $t['deposito_destino_id'], $id]
+        );
+        return $this->response->setBody(view('traslados/modal', ['t' => $t, 'items' => $items]));
+    }
+
     /** POST JSON {origen_id, destino_id, notas, items[{producto_id, cantidad}]} */
     public function guardar()
     {

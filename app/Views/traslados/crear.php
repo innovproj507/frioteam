@@ -4,10 +4,13 @@
 <div x-data="trasladoForm()" x-init="init()">
 
     <!-- Breadcrumb -->
-    <div class="flex items-center gap-2 text-sm text-gray-400 mb-3">
-        <a href="/inventario/traslados?lista=1" class="hover:text-gray-600 transition-colors">Traslados</a>
-        <i class="fas fa-chevron-right text-xs"></i>
-        <span class="text-gray-700 font-medium">Añadir Traslado</span>
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div class="flex items-center gap-2 text-sm text-gray-400">
+            <a href="/inventario/traslados?lista=1" class="hover:text-gray-600 transition-colors">Traslados</a>
+            <i class="fas fa-chevron-right text-xs"></i>
+            <span class="text-gray-700 font-medium">Añadir Traslado</span>
+        </div>
+        <a href="/inventario/traslados?lista=1" class="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition shadow-sm"><i class="fas fa-list"></i> Lista de traslados</a>
     </div>
 
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
@@ -231,8 +234,12 @@ function trasladoForm() {
             const existing = this.items.find(i => i.producto_id === p.producto_id);
             if (existing) {
                 existing.cantidad++;
+                // El último producto que se toca va arriba
+                const idx = this.items.indexOf(existing);
+                if (idx > 0) this.items.unshift(this.items.splice(idx, 1)[0]);
             } else {
-                this.items.push({ producto_id: p.producto_id, nombre: p.nombre, codigo: p.codigo, cantidad: 1 });
+                // El último producto que entra queda de primero en la lista
+                this.items.unshift({ producto_id: p.producto_id, nombre: p.nombre, codigo: p.codigo, cantidad: 1 });
             }
             this.searchQuery = '';
             this.resultados = [];

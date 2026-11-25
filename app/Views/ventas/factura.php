@@ -47,13 +47,13 @@ $emitidoPor = trim((string) ($venta['vendedor_nombre'] ?? '')) ?: (string) ($ven
     <title>Factura <?= esc($venta['numero_factura']) ?></title>
     <style>
         @page { size: <?= ($papel ?? 'letter') === 'a4' ? 'A4' : 'letter' ?> portrait; margin: 14mm 12mm; }
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #111; margin: 0; <?= $modo === 'web' ? 'background:#e5e7eb;' : '' ?> }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 14px; color: #111; margin: 0; <?= $modo === 'web' ? 'background:#e5e7eb;' : '' ?> }
         .hoja { <?= $modo === 'web' ? 'max-width: 800px; margin: 16px auto; background:#fff; padding: 28px 34px; box-shadow: 0 1px 6px rgba(0,0,0,.15);' : '' ?> }
         h3 { margin: 0 0 4px 0; font-size: 15px; }
         p  { margin: 0 0 3px 0; }
         table { border-collapse: collapse; width: 100%; }
         .sin-borde td { border: 0; vertical-align: top; padding: 0; }
-        .items th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 5px 6px; font-size: 10.5px; text-align: center; }
+        .items th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 5px 6px; font-size: 13px; text-align: center; }
         .items td { border: 1px solid #cbd5e1; padding: 5px 6px; vertical-align: middle; }
         .der { text-align: right; } .cen { text-align: center; }
         .tot td { border: 1px solid #cbd5e1; padding: 5px 8px; }
@@ -130,27 +130,28 @@ $emitidoPor = trim((string) ($venta['vendedor_nombre'] ?? '')) ?: (string) ($ven
         </tr>
     </table>
 
+    <?php $conUbicacion = ($venta['origen'] ?? '') === 'pos'; // ventas al por mayor: sin columna de ubicación ?>
     <table class="items">
         <thead>
             <tr>
                 <th style="width: 30px;">No</th>
-                <th style="width: 92px;">Ubicación</th>
-                <th style="width: 70px;">Código</th>
+                <?php if ($conUbicacion): ?><th style="width: 92px;">Ubicación</th><?php endif; ?>
+                <th style="width: 84px;">Código</th>
                 <th>Descripción</th>
-                <th style="width: 62px;">Cantidad</th>
-                <th style="width: 82px;">Precio unitario</th>
-                <th style="width: 82px;">Subtotal</th>
+                <th style="width: 76px;">Cantidad</th>
+                <th style="width: 82px; white-space: nowrap;">P. Unitario</th>
+                <th style="width: 96px;">Subtotal</th>
             </tr>
         </thead>
         <tbody>
         <?php $n = 1; foreach ($items as $it): ?>
             <tr>
                 <td class="cen"><?= $n++ ?></td>
-                <td class="cen">
+                <?php if ($conUbicacion): ?><td class="cen">
                     <?php if (!empty($it['ubicacion'])): ?><b><?= esc($it['ubicacion']) ?></b><?php else: ?><span style="color:#94a3b8;">—</span><?php endif; ?>
                     <?php if (!empty($it['deposito_nombre'])): ?><br><span style="font-size: 9px; color: #64748b;"><?= esc($it['deposito_nombre']) ?></span><?php endif; ?>
-                </td>
-                <td class="cen" style="font-size: 10px;"><?= esc((string) $it['codigo']) ?></td>
+                </td><?php endif; ?>
+                <td class="cen" style="font-size: 13px;"><?= esc((string) $it['codigo']) ?></td>
                 <td><?= esc($it['nombre']) ?></td>
                 <td class="cen"><?= esc(rtrim(rtrim(number_format((float) $it['cantidad'], 2, '.', ''), '0'), '.')) ?><?= !empty($it['unidad_nombre']) ? ' ' . esc($it['unidad_nombre']) : '' ?>
                     <?php if (!empty($ajustada) && (float) ($it['cantidad_devuelta'] ?? 0) > 0): ?><br><span style="font-size: 9px; color: #b91c1c;">(<?= esc(rtrim(rtrim(number_format((float) $it['cantidad_vendida'], 2, '.', ''), '0'), '.')) ?> vendidas, <?= esc(rtrim(rtrim(number_format((float) $it['cantidad_devuelta'], 2, '.', ''), '0'), '.')) ?> devuelta)</span><?php endif; ?></td>

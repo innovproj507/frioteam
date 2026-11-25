@@ -21,6 +21,8 @@ $routes->group('', ['filter' => ['auth', 'sucursal']], static function ($routes)
     // Configuración
     $routes->get('configuracion', 'ConfiguracionController::sistema', ['filter' => 'permiso:usuarios.gestionar']);
     $routes->post('configuracion/guardar', 'ConfiguracionController::guardar', ['filter' => 'permiso:usuarios.gestionar']);
+    $routes->post('configuracion/apagar', 'ApagadoController::apagar', ['filter' => 'permiso:usuarios.gestionar']);
+    $routes->post('configuracion/apagar/cancelar', 'ApagadoController::cancelar', ['filter' => 'permiso:usuarios.gestionar']);
     $routes->get('configuracion/roles', 'ConfiguracionController::roles', ['filter' => 'permiso:usuarios.ver']);
     $routes->post('configuracion/roles/guardar', 'ConfiguracionController::guardarRol', ['filter' => 'permiso:usuarios.gestionar']);
     $routes->post('configuracion/roles/restaurar', 'ConfiguracionController::restaurarRol', ['filter' => 'permiso:usuarios.gestionar']);
